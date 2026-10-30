@@ -1,0 +1,70 @@
+{% extends "layouts/dashboard.html" %}
+{% from "partials/artists.html" import artist_editor_card %}
+{% block title %}{% if event %}Edit event{% else %}Create event{% endif %} · EventLink Zambia{% endblock %}
+{% block page %}
+<form class="panel" method="post" enctype="multipart/form-data">
+  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+  <h1>{% if event %}Edit {{ event.title }}{% else %}Create an event{% endif %}</h1>
+  {% if event and event.rejection_reason %}<div class="alert alert-warning">{{ event.rejection_reason }}</div>{% endif %}
+  {% if locked %}<div class="alert alert-info">Tickets have already been reserved or sold, so prices, quantities, and the schedule stay locked.</div>{% endif %}
+  {% for error in errors %}<div class="alert alert-danger">{{ error }}</div>{% endfor %}
+  {% if photos_cleared %}<div class="alert alert-warning">Choose the poster and any new artist photos again. For security, browsers do not keep selected files after a form is returned.</div>{% endif %}
+  {% set posted = request.method == 'POST' %}
+  <div class="mb-3"><label class="form-label" for="title">Title</label><input class="form-control" id="title" name="title" required maxlength="150" value="{% if posted %}{{ request.form.get('title', '') }}{% elif event %}{{ event.title }}{% endif %}" {% if locked %}readonly{% endif %}></div>
+  <div class="mb-3"><label class="form-label" for="category_id">Category</label>
+    <select class="form-select" id="category_id" name="category_id" {% if locked %}disabled{% endif %}>
+      {% for category in categories %}
+        <option value="{{ category.id }}" {% if event and event.category_id == category.id %}selected{% endif %}>{{ category.name }}</option>
+      {% endfor %}
+    </select>
+    {% if locked and event %}<input type="hidden" name="category_id" value="{{ event.category_id }}">{% endif %}
+  </div>
+  <section class="artists-section mb-4" aria-labelledby="artists-section-heading">
+    <div class="artists-section-head">
+      <div>
+        <h2 id="artists-section-heading"><i class="bi bi-mic" aria-hidden="true"></i> Artists &amp; Performers</h2>
+        <p class="form-text mb-0">Add the musicians, DJs, bands and other performers appearing at this event. Customers see them on the public event page once the event is approved. Each artist needs a photo before you submit.</p>
+      </div>
+      <span class="artists-count" data-artist-count>{{ artist_rows|length }} added</span>
+    </div>
+    {% if event and event.is_public and not locked %}<p class="small text-muted"><i class="bi bi-info-circle" aria-hidden="true"></i> This event is live. Saving any change, including artists, sends it back for administrator approval.</p>{% endif %}
+    <div class="artist-edit-list" id="artist-list" data-artist-list>
+      {% for row in artist_rows %}{{ artist_editor_card(row, artist_categories) }}{% endfor %}
+    </div>
+    <p class="artists-empty" data-artist-empty {% if artist_rows %}hidden{% endif %}><i class="bi bi-person-plus" aria-hidden="true"></i> No artists added yet.</p>
+    <button class="btn btn-outline-success btn-sm" type="button" data-add-artist><i class="bi bi-plus-lg" aria-hidden="true"></i> Add artist</button>
+    <template id="artist-template">{{ artist_editor_card({"key": "__KEY__", "id": "", "name": "", "category": "", "description": "", "image": None}, artist_categories) }}</template>
+  </section>
+  <div class="mb-3"><label class="form-label" for="description">Description</label><textarea class="form-control" id="description" name="description" rows="5" required>{% if posted %}{{ request.form.get('description', '') }}{% elif event %}{{ event.description }}{% endif %}</textarea></div>
+  <div class="row">
+    <div class="col-md-6 mb-3"><label class="form-label" for="venue">Venue</label><input class="form-control" id="venue" name="venue" required value="{% if posted %}{{ request.form.get('venue', '') }}{% elif event %}{{ event.venue }}{% endif %}" {% if locked %}readonly{% endif %}></div>
+    <div class="col-md-6 mb-3"><label class="form-label" for="location">Town or city</label><input class="form-control" id="location" name="location" required value="{% if posted %}{{ request.form.get('location', '') }}{% elif event %}{{ event.location }}{% endif %}" {% if locked %}readonly{% endif %}></div>
+    <div class="col-md-6 mb-3"><label class="form-label" for="start_datetime">Starts</label><input class="form-control" id="start_datetime" type="datetime-local" name="start_datetime" required value="{% if posted %}{{ request.form.get('start_datetime', '') }}{% elif event %}{{ local_input(event.start_datetime) }}{% endif %}" {% if locked %}readonly{% endif %}></div>
+    <div class="col-md-6 mb-3"><label class="form-label" for="end_datetime">Ends</label><input class="form-control" id="end_datetime" type="datetime-local" name="end_datetime" required value="{% if posted %}{{ request.form.get('end_datetime', '') }}{% elif event %}{{ local_input(event.end_datetime) }}{% endif %}" {% if locked %}readonly{% endif %}></div>
+    <div class="col-md-6 mb-3"><label class="form-label" for="sales_start">Sales open</label><input class="form-control" id="sales_start" type="datetime-local" name="sales_start" required value="{% if posted %}{{ request.form.get('sales_start', '') }}{% elif event %}{{ local_input(event.sales_start) }}{% endif %}" {% if locked %}readonly{% endif %}></div>
+    <div class="col-md-6 mb-3"><label class="form-label" for="sales_end">Sales close</label><input class="form-control" id="sales_end" type="datetime-local" name="sales_end" required value="{% if posted %}{{ request.form.get('sales_end', '') }}{% elif event %}{{ local_input(event.sales_end) }}{% endif %}" {% if locked %}readonly{% endif %}></div>
+  </div>
+  <div class="mb-3"><label class="form-label" for="contact_info">Organiser contact</label><input class="form-control" id="contact_info" name="contact_info" required value="{% if posted %}{{ request.form.get('contact_info', '') }}{% elif event %}{{ event.contact_info }}{% else %}{{ current_user.phone }}{% endif %}"></div>
+  <div class="mb-3"><label class="form-label" for="poster">Poster</label><input class="form-control" id="poster" type="file" name="poster" accept="image/jpeg,image/png,image/webp">{% if event and event.poster_path|upload %}<p class="form-text">A poster is already saved.</p>{% endif %}</div>
+  <h2>Ticket categories</h2>
+  <p class="form-text">For each ticket type, enter the name, price in Kwacha (for example 200.00), total quantity, and the maximum one customer may buy. A customer can never hold more than that maximum, even across several orders.</p>
+  <div id="ticket-rows">
+    {% for row in ticket_rows %}
+    <div class="ticket-row row g-2 mb-2">
+      <input type="hidden" name="ticket_id" value="{{ row.id }}">
+      <div class="col-md-3"><input class="form-control" name="ticket_name" placeholder="Name" value="{{ row.name }}" {% if locked %}readonly{% endif %}></div>
+      <div class="col-md-2"><input class="form-control" name="ticket_price" placeholder="Price ZMW" value="{{ row.price }}" {% if locked %}readonly{% endif %}></div>
+      <div class="col-md-2"><input class="form-control" name="ticket_qty" placeholder="Quantity" value="{{ row.quantity }}" {% if locked %}readonly{% endif %}></div>
+      <div class="col-md-2"><input class="form-control" name="ticket_max" placeholder="Max per customer" aria-label="Maximum tickets per customer" value="{{ row.max_per_order }}" {% if locked %}readonly{% endif %}></div>
+      <div class="col-md-3"><input class="form-control" name="ticket_desc" placeholder="Description" value="{{ row.description }}" {% if locked %}readonly{% endif %}></div>
+    </div>
+    {% endfor %}
+  </div>
+  {% if not locked %}<button class="btn btn-outline-secondary btn-sm mb-3" type="button" data-add-ticket>Add ticket category</button>{% endif %}
+  <div>
+    <button class="btn btn-outline-secondary" type="submit" name="action" value="draft">Save draft</button>
+    {% if not locked %}<button class="btn btn-green" type="submit" name="action" value="submit">Submit for approval</button>{% endif %}
+  </div>
+</form>
+{% endblock %}
+{% block extra_js %}<script src="{{ url_for('static', filename='js/events.js') }}"></script>{% endblock %}

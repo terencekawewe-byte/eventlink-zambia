@@ -1,0 +1,200 @@
+{% extends "layouts/dashboard.html" %}
+{% from "partials/ui.html" import badge %}
+{% from "partials/planner_media.html" import planner_avatar, portfolio_gallery %}
+{% block title %}Planner Details · {{ profile.business_name }} · EventLink Zambia{% endblock %}
+{% block crumb_trail %}<li><a href="{{ url_for('admin.planners') }}">Planner Verification</a></li>{% endblock %}
+{% block page %}
+{% set status = profile.approval_status %}
+{% set account = profile.user %}
+{% set specialities = profile.speciality_list %}
+<div class="review-page">
+  <div class="dash-head">
+    <div>
+      <h1>Planner Details</h1>
+      <p>Review planner information and verification status.</p>
+    </div>
+    <a class="btn btn-outline-secondary review-back" href="{{ url_for('admin.planners') }}"><i class="bi bi-arrow-left" aria-hidden="true"></i> Back to Planners</a>
+  </div>
+
+  <section class="panel planner-hero" aria-labelledby="planner-name">
+    <div class="planner-hero-top">
+      {% set photo = profile.profile_photo|upload %}
+      {% if photo %}
+      <a class="planner-hero-photo" href="{{ url_for('static', filename=photo) }}" data-lightbox="admin-logo" data-caption="Logo or profile photo of {{ profile.business_name }}" aria-label="View logo of {{ profile.business_name }} larger">{{ planner_avatar(profile, "planner-hero-avatar") }}</a>
+      {% else %}
+      {{ planner_avatar(profile, "planner-hero-avatar") }}
+      {% endif %}
+      <div class="planner-hero-title">
+        <h2 id="planner-name">{{ profile.business_name }}</h2>
+        <p><i class="bi bi-person" aria-hidden="true"></i> {{ account.full_name }}</p>
+        <div class="planner-hero-badges">
+          <span class="review-badge-label">Verification</span> {{ badge(status) }}
+          <span class="review-badge-label">Account</span> {{ badge(account.account_status) }}
+        </div>
+      </div>
+      <a class="planner-hero-link" href="{{ url_for('admin.user_detail', user_id=account.id) }}"><i class="bi bi-person-gear" aria-hidden="true"></i> View user account</a>
+    </div>
+    <dl class="info-grid">
+      <div><dt><i class="bi bi-envelope" aria-hidden="true"></i> Email</dt><dd><a href="mailto:{{ account.email }}">{{ account.email }}</a></dd></div>
+      <div><dt><i class="bi bi-telephone" aria-hidden="true"></i> Phone</dt><dd><a href="tel:{{ account.phone }}">{{ account.phone }}</a></dd></div>
+      <div><dt><i class="bi bi-geo-alt" aria-hidden="true"></i> Location</dt><dd>{{ profile.location }}</dd></div>
+      <div><dt><i class="bi bi-grid" aria-hidden="true"></i> Business category</dt><dd>{{ profile.business_category or "Not provided" }}</dd></div>
+      <div class="info-grid-wide"><dt><i class="bi bi-signpost" aria-hidden="true"></i> Business address</dt><dd>{{ profile.business_address or "Not provided" }}</dd></div>
+    </dl>
+  </section>
+
+  <div class="row g-4">
+    <div class="col-lg-8">
+      <section class="panel review-card" aria-labelledby="overview-heading">
+        <div class="panel-head"><h2 id="overview-heading" class="h5"><i class="bi bi-building" aria-hidden="true"></i> Business overview</h2></div>
+        <dl class="detail-list">
+          <dt>Business name</dt><dd>{{ profile.business_name }}</dd>
+          <dt>Category</dt><dd>{{ profile.business_category or "Not provided" }}</dd>
+          <dt>Location</dt><dd>{{ profile.location }}</dd>
+          <dt>Specialities</dt>
+          <dd>
+            {% if specialities %}
+            <ul class="tag-list">{% for item in specialities %}<li>{{ item }}</li>{% endfor %}</ul>
+            {% else %}<span class="text-muted">Not provided</span>{% endif %}
+          </dd>
+        </dl>
+        <h3 class="review-subhead">About the business</h3>
+        {% if profile.biography %}<p class="review-text">{{ profile.biography|nl2br }}</p>{% else %}<p class="panel-note">No biography provided.</p>{% endif %}
+        <h3 class="review-subhead">Experience</h3>
+        {% if profile.experience %}<p class="review-text">{{ profile.experience|nl2br }}</p>{% else %}<p class="panel-note">No experience provided.</p>{% endif %}
+        {% if profile.availability %}
+        <h3 class="review-subhead">Availability</h3>
+        <p class="review-text mb-0">{{ profile.availability|nl2br }}</p>
+        {% endif %}
+      </section>
+
+      <section class="panel review-card" aria-labelledby="services-heading">
+        <div class="panel-head">
+          <h2 id="services-heading" class="h5"><i class="bi bi-briefcase" aria-hidden="true"></i> Services offered</h2>
+          <span class="panel-note">{{ profile.services|length }} service{{ '' if profile.services|length == 1 else 's' }}</span>
+        </div>
+        {% if profile.services %}
+        <ul class="service-list">
+          {% for service in profile.services %}
+          <li>
+            <span class="service-icon" aria-hidden="true"><i class="bi bi-check2-circle"></i></span>
+            <div>
+              <strong>{{ service.service_name }}</strong>
+              {% if service.description %}<p>{{ service.description }}</p>{% endif %}
+            </div>
+            <span class="service-price">
+              {% if service.pricing_type == 'quotation' %}By quotation
+              {% elif service.starting_price is not none %}{{ 'Fixed' if service.pricing_type == 'fixed' else 'From' }} {{ service.starting_price|zmw }}
+              {% endif %}
+            </span>
+          </li>
+          {% endfor %}
+        </ul>
+        {% else %}
+        <p class="panel-note mb-0">This planner has not listed any services.</p>
+        {% endif %}
+      </section>
+
+      <section class="panel review-card" aria-labelledby="pacra-heading">
+        <div class="panel-head"><h2 id="pacra-heading" class="h5"><i class="bi bi-file-earmark-check" aria-hidden="true"></i> Registration and PACRA information</h2></div>
+        <dl class="detail-list">
+          <dt>PACRA number</dt><dd>{% if profile.pacra_number %}<code class="pacra-code">{{ profile.pacra_number }}</code>{% else %}<span class="text-muted">Not provided</span>{% endif %}</dd>
+          <dt>Reference code</dt><dd>{% if profile.pacra_reference %}<code class="pacra-code">{{ profile.pacra_reference }}</code>{% else %}<span class="text-muted">Not provided</span>{% endif %}</dd>
+        </dl>
+        {% if pacra_document_available %}
+        {% set is_pdf = profile.pacra_document.endswith('.pdf') %}
+        <div class="pacra-doc">
+          <span class="pacra-doc-icon" aria-hidden="true"><i class="bi bi-file-earmark-{{ 'pdf' if is_pdf else 'image' }}"></i></span>
+          <div class="pacra-doc-text"><strong>PACRA supporting document</strong><span>{{ "PDF document" if is_pdf else "Image" }} · only administrators can open it</span></div>
+          <div class="pacra-doc-actions">
+            <a class="btn btn-sm btn-outline-success" href="{{ url_for('admin.planner_pacra_document', profile_id=profile.id) }}" target="_blank" rel="noopener"><i class="bi bi-eye" aria-hidden="true"></i> View</a>
+            <a class="btn btn-sm btn-outline-secondary" href="{{ url_for('admin.planner_pacra_document', profile_id=profile.id, download=1) }}"><i class="bi bi-download" aria-hidden="true"></i> Download</a>
+          </div>
+        </div>
+        {% elif profile.pacra_document %}
+        <p class="review-warning mb-0"><i class="bi bi-exclamation-triangle" aria-hidden="true"></i> A PACRA document was recorded but the file can no longer be found.</p>
+        {% elif profile.pacra_number %}
+        <p class="panel-note mb-0"><i class="bi bi-info-circle" aria-hidden="true"></i> No PACRA certificate was uploaded. Check the registration number with PACRA before approving.</p>
+        {% else %}
+        <p class="panel-note mb-0"><i class="bi bi-info-circle" aria-hidden="true"></i> No PACRA certificate was uploaded. This application has no PACRA details, so ask the planner for them before approving.</p>
+        {% endif %}
+      </section>
+
+      <section class="panel review-card" aria-labelledby="portfolio-heading">
+        <div class="panel-head">
+          <h2 id="portfolio-heading" class="h5"><i class="bi bi-images" aria-hidden="true"></i> Portfolio</h2>
+          <span class="panel-note">{{ profile.portfolio_images|length }} image{{ '' if profile.portfolio_images|length == 1 else 's' }}</span>
+        </div>
+        {{ portfolio_gallery(profile, "admin-portfolio", "No portfolio images", "This planner did not upload any photos of previous events.") }}
+      </section>
+    </div>
+
+    <div class="col-lg-4">
+      <div class="review-side">
+        <section class="panel review-card" aria-labelledby="verification-heading">
+          <div class="panel-head"><h2 id="verification-heading" class="h5"><i class="bi bi-patch-check" aria-hidden="true"></i> Verification</h2></div>
+          <div class="verify-state verify-{{ status }}">
+            {% if status == 'approved' %}<i class="bi bi-patch-check-fill" aria-hidden="true"></i><div><strong>Approved</strong><span>This planner can use planner tools.</span></div>
+            {% elif status == 'rejected' %}<i class="bi bi-x-circle-fill" aria-hidden="true"></i><div><strong>Rejected</strong><span>The application was not approved.</span></div>
+            {% elif status == 'suspended' %}<i class="bi bi-pause-circle-fill" aria-hidden="true"></i><div><strong>Suspended</strong><span>Planner access is currently suspended.</span></div>
+            {% else %}<i class="bi bi-hourglass-split" aria-hidden="true"></i><div><strong>Pending review</strong><span>Waiting for an administrator decision.</span></div>
+            {% endif %}
+          </div>
+          <dl class="detail-list review-meta">
+            <dt>Submitted</dt><dd>{{ profile.created_at|localdt }}</dd>
+            {% if profile.approved_at %}
+            <dt>Last reviewed</dt><dd>{{ profile.approved_at|localdt }}{% if profile.approver %}<br><span class="panel-note">by {{ profile.approver.full_name }}</span>{% endif %}</dd>
+            {% endif %}
+            <dt>Terms</dt><dd>{% if profile.terms_accepted %}<i class="bi bi-check-circle-fill text-success" aria-hidden="true"></i> Accepted{% else %}<i class="bi bi-dash-circle text-muted" aria-hidden="true"></i> Not accepted{% endif %}</dd>
+          </dl>
+          {% if profile.rejection_reason %}
+          <div class="review-reason-note">
+            <span>{{ "Suspension reason" if status == 'suspended' else "Rejection reason" }}</span>
+            <p class="mb-0">{{ profile.rejection_reason }}</p>
+          </div>
+          {% endif %}
+          <div class="review-completion">
+            <div class="d-flex justify-content-between"><span>Profile completeness</span><strong>{{ profile.completion_percent }}%</strong></div>
+            <div class="progress" role="progressbar" aria-label="Profile completeness" aria-valuenow="{{ profile.completion_percent }}" aria-valuemin="0" aria-valuemax="100">
+              <div class="progress-bar" style="width: {{ profile.completion_percent }}%"></div>
+            </div>
+            {% if profile.missing_profile_items %}<p class="panel-note mb-0">Missing: {{ profile.missing_profile_items|join(", ") }}.</p>{% endif %}
+          </div>
+        </section>
+
+        <section class="panel review-card review-actions" aria-labelledby="actions-heading">
+          <div class="panel-head"><h2 id="actions-heading" class="h5"><i class="bi bi-sliders" aria-hidden="true"></i> Actions</h2></div>
+          {% if status != 'approved' %}
+          {% if account.account_status != 'active' %}
+          <p class="review-warning"><i class="bi bi-exclamation-triangle" aria-hidden="true"></i> The user account is {{ account.account_status }}. Reactivate it from the <a href="{{ url_for('admin.user_detail', user_id=account.id) }}">user account page</a> before approving.</p>
+          {% endif %}
+          <form method="post" action="{{ url_for('admin.planner_approve', profile_id=profile.id) }}" data-confirm="Approve {{ profile.business_name }}? The planner will be notified and can start using planner tools.">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <button class="btn btn-green w-100" type="submit"><i class="bi bi-check-circle" aria-hidden="true"></i> Approve planner</button>
+          </form>
+          {% endif %}
+          {% if status == 'pending' %}
+          <div class="review-divider"><span>or</span></div>
+          <form method="post" action="{{ url_for('admin.planner_reject', profile_id=profile.id) }}" data-confirm="Reject {{ profile.business_name }}? The planner will be notified with your reason.">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <label class="form-label" for="reason">Rejection reason</label>
+            <textarea class="form-control review-reason mb-1" id="reason" name="reason" rows="3" required minlength="5" maxlength="500" placeholder="Explain what the planner needs to fix, for example missing services or unclear business details." aria-describedby="reason-help"></textarea>
+            <p class="form-text mt-0 mb-2" id="reason-help">5 to 500 characters. The planner will see this message.</p>
+            <button class="btn btn-danger w-100" type="submit"><i class="bi bi-x-circle" aria-hidden="true"></i> Reject application</button>
+          </form>
+          {% elif status == 'approved' %}
+          <form method="post" action="{{ url_for('admin.planner_suspend', profile_id=profile.id) }}" data-confirm="Suspend planner access for {{ profile.business_name }}? The planner will be notified with your reason.">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <label class="form-label" for="suspend-reason">Suspension reason</label>
+            <textarea class="form-control review-reason mb-1" id="suspend-reason" name="reason" rows="3" required minlength="5" maxlength="500" placeholder="Explain why planner access is being suspended." aria-describedby="suspend-help"></textarea>
+            <p class="form-text mt-0 mb-2" id="suspend-help">5 to 500 characters. The planner will see this message.</p>
+            <button class="btn btn-outline-danger w-100" type="submit"><i class="bi bi-pause-circle" aria-hidden="true"></i> Suspend planner access</button>
+          </form>
+          {% endif %}
+        </section>
+      </div>
+    </div>
+  </div>
+</div>
+{% include "partials/lightbox.html" %}
+{% endblock %}

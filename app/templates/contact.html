@@ -1,0 +1,73 @@
+{% extends "base.html" %}
+{% block title %}Contact · EventLink Zambia{% endblock %}
+{% macro field_errors(field) -%}
+{% for error in field.errors %}<div class="invalid-feedback d-block">{{ error }}</div>{% endfor %}
+{%- endmacro %}
+{% block content %}
+<section class="guide-hero contact-hero">
+  <p class="eyebrow"><i class="bi bi-chat-dots-fill" aria-hidden="true"></i> Contact us</p>
+  <h1>We would love to hear from you</h1>
+  <p class="lead">Questions about tickets, payments, planner bookings, or listing your business? Send us a message and the EventLink team will get back to you by email.</p>
+</section>
+
+<div class="contact-layout">
+  <aside class="contact-side">
+    <a class="contact-card" href="mailto:support@eventlink.co.zm">
+      <span class="trust-icon"><i class="bi bi-envelope" aria-hidden="true"></i></span>
+      <span><strong>Email us</strong><span>support@eventlink.co.zm</span></span>
+    </a>
+    <a class="contact-card" href="tel:+260978373489">
+      <span class="trust-icon"><i class="bi bi-telephone" aria-hidden="true"></i></span>
+      <span><strong>Call us</strong><span>+260 97 837 3489</span></span>
+    </a>
+    <div class="contact-card">
+      <span class="trust-icon trust-icon-copper"><i class="bi bi-geo-alt" aria-hidden="true"></i></span>
+      <span><strong>Visit us</strong><span>Lusaka, Zambia</span></span>
+    </div>
+    <div class="contact-help">
+      <h2>Quick help</h2>
+      <a href="{{ url_for('pages.how_it_works') }}"><i class="bi bi-signpost-split" aria-hidden="true"></i> How EventLink works</a>
+      <a href="{{ url_for('pages.support') }}"><i class="bi bi-life-preserver" aria-hidden="true"></i> Help and support</a>
+      <a href="{{ url_for('pages.terms') }}"><i class="bi bi-file-text" aria-hidden="true"></i> Terms and conditions</a>
+    </div>
+  </aside>
+
+  <form class="contact-form needs-check" method="post" novalidate>
+    {{ form.hidden_tag() }}
+    <div class="contact-form-head">
+      <span class="guide-badge"><i class="bi bi-send" aria-hidden="true"></i></span>
+      <div>
+        <h2>Send us a message</h2>
+        <p>Your message goes straight to the EventLink administrators.</p>
+      </div>
+    </div>
+    <div class="row g-3">
+      <div class="col-md-6">
+        {{ form.name.label(class="form-label") }}
+        {{ form.name(class="form-control" ~ (" is-invalid" if form.name.errors else ""), required=true, autocomplete="name", placeholder="e.g. Rosemary Lungu") }}
+        {{ field_errors(form.name) }}
+      </div>
+      <div class="col-md-6">
+        {{ form.email.label(class="form-label") }}
+        {{ form.email(class="form-control" ~ (" is-invalid" if form.email.errors else ""), type="email", required=true, autocomplete="email", placeholder="you@example.com") }}
+        {{ field_errors(form.email) }}
+      </div>
+      <div class="col-12">
+        {{ form.subject.label(class="form-label") }}
+        {{ form.subject(class="form-control" ~ (" is-invalid" if form.subject.errors else ""), required=true, maxlength=150, placeholder="What is your message about?") }}
+        {{ field_errors(form.subject) }}
+      </div>
+      <div class="col-12">
+        {{ form.message.label(class="form-label") }}
+        {{ form.message(class="form-control" ~ (" is-invalid" if form.message.errors else ""), rows=6, required=true, minlength=10, maxlength=2000, placeholder="Tell us how we can help. Include an order or booking reference if you have one.") }}
+        <div class="form-text">Between 10 and 2,000 characters.</div>
+        {{ field_errors(form.message) }}
+      </div>
+    </div>
+    <div class="contact-submit">
+      <p><i class="bi bi-shield-lock" aria-hidden="true"></i> Never include passwords, PINs, or card details.</p>
+      <button class="btn btn-copper" type="submit"><i class="bi bi-send" aria-hidden="true"></i> {{ form.submit.label.text }}</button>
+    </div>
+  </form>
+</div>
+{% endblock %}

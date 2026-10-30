@@ -1,0 +1,25 @@
+{% extends "layouts/dashboard.html" %}
+{% from "partials/ui.html" import badge, empty %}
+{% block title %}Quotations · EventLink Zambia{% endblock %}
+{% block page %}
+<h1>Quotations</h1>
+{% if quotations %}
+<div class="table-responsive">
+  <table class="table">
+    <thead><tr><th>Booking</th><th>Amount</th><th>Status</th><th></th></tr></thead>
+    <tbody>
+      {% for quotation in quotations %}
+      <tr>
+        <td>{{ quotation.booking.event_type }}</td>
+        <td>{{ quotation.amount|zmw }}</td>
+        <td>{{ badge(quotation.status) }}</td>
+        <td><a href="{{ url_for('planner.booking_detail', booking_id=quotation.booking_id) }}">Open booking</a></td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% else %}
+{{ empty("file-earmark-text", "No quotations", "Quotations you send to clients are listed here.") }}
+{% endif %}
+{% endblock %}

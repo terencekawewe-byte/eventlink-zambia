@@ -1,0 +1,210 @@
+{% extends "layouts/dashboard.html" %}
+{% from "partials/ui.html" import badge, empty, csrf %}
+{% block title %}Planner dashboard · EventLink Zambia{% endblock %}
+{% block page %}
+<section class="dash-welcome">
+  <div>
+    <p class="eyebrow">Planner dashboard</p>
+    <h1>{{ profile.business_name }}</h1>
+    <p>Welcome back, {{ current_user.full_name }}.
+      {{ badge("verified", "Verified planner") }}
+      {% if profile.approved_at %}<span class="dash-welcome-note">since {{ profile.approved_at|localdate }}</span>{% endif %}
+    </p>
+  </div>
+  <div class="dash-welcome-actions">
+    <a class="btn btn-copper" href="{{ url_for('planner.bookings', status='pending') }}"><i class="bi bi-inbox" aria-hidden="true"></i> Review requests</a>
+    <a class="btn btn-outline-light" href="{{ url_for('events.planner_detail', planner_id=profile.id) }}"><i class="bi bi-box-arrow-up-right" aria-hidden="true"></i> Public profile</a>
+  </div>
+</section>
+
+<section class="profile-meter" aria-label="Profile completeness">
+  <div class="profile-meter-head">
+    <strong>Profile {{ profile.completion_percent }}% complete</strong>
+    <a href="{{ url_for('planner.edit_profile') }}">{{ "Update profile" if missing else "Edit profile" }}</a>
+  </div>
+  <div class="progress progress-thin" role="progressbar" aria-label="Profile completion" aria-valuenow="{{ profile.completion_percent }}" aria-valuemin="0" aria-valuemax="100">
+    <div class="progress-bar bg-success" style="width: {{ profile.completion_percent }}%"></div>
+  </div>
+  {% if missing %}
+  <p class="profile-meter-missing"><i class="bi bi-exclamation-circle" aria-hidden="true"></i> Still missing: {{ missing|join(", ") }}.</p>
+  {% else %}
+  <p class="profile-meter-missing done"><i class="bi bi-check-circle-fill" aria-hidden="true"></i> Clients can see every part of your profile.</p>
+  {% endif %}
+</section>
+
+<div class="stat-grid">
+  <a class="stat-card stat-card-link" href="{{ url_for('planner.bookings') }}">
+    <div class="stat-icon"><i class="bi bi-inbox" aria-hidden="true"></i></div>
+    <strong>{{ stats.total }}</strong>
+    <span>Total booking requests</span>
+    <small>All requests received</small>
+  </a>
+  <a class="stat-card stat-card-link" href="{{ url_for('planner.bookings', status='pending') }}">
+    <div class="stat-icon copper"><i class="bi bi-hourglass-split" aria-hidden="true"></i></div>
+    <strong>{{ stats.pending }}</strong>
+    <span>Pending requests</span>
+    <small>{{ "Waiting for your reply" if stats.pending else "Nothing waiting" }}</small>
+  </a>
+  <a class="stat-card stat-card-link" href="{{ url_for('planner.bookings', status='accepted') }}">
+    <div class="stat-icon"><i class="bi bi-check2-circle" aria-hidden="true"></i></div>
+    <strong>{{ stats.confirmed }}</strong>
+    <span>Confirmed bookings</span>
+    <small>{{ stats.completed }} completed</small>
+  </a>
+  <a class="stat-card stat-card-link" href="#schedule">
+    <div class="stat-icon copper"><i class="bi bi-calendar-week" aria-hidden="true"></i></div>
+    <strong>{{ stats.upcoming }}</strong>
+    <span>Upcoming events</span>
+    <small>{{ stats.upcoming_bookings }} booking{{ "" if stats.upcoming_bookings == 1 else "s" }} · {{ stats.upcoming_events }} own event{{ "" if stats.upcoming_events == 1 else "s" }}</small>
+  </a>
+</div>
+
+<section class="panel panel-focus dash-section" aria-labelledby="pending-heading">
+  <div class="panel-head">
+    <h2 id="pending-heading"><i class="bi bi-inbox-fill" aria-hidden="true"></i> Booking requests awaiting your reply</h2>
+    <a href="{{ url_for('planner.bookings', status='pending') }}">All pending requests</a>
+  </div>
+  {% if pending_requests %}
+  <div class="table-responsive">
+    <table class="table align-middle mb-0 request-table">
+      <thead>
+        <tr><th>Client</th><th>Service</th><th>Event date</th><th>Location</th><th>Requested</th><th>Quotation</th><th>Status</th><th class="text-end">Actions</th></tr>
+      </thead>
+      <tbody>
+      {% for booking in pending_requests %}
+      {% set quote = booking.quotations[-1] if booking.quotations else None %}
+        <tr>
+          <td><strong>{{ booking.client.full_name }}</strong><br><small class="text-muted">{{ booking.guest_count }} guests · budget {{ booking.budget|zmw }}</small></td>
+          <td>{{ booking.event_type }}</td>
+          <td>{{ booking.event_date.strftime('%d %b %Y') }}<br><small class="text-muted">{{ booking.start_time.strftime('%H:%M') }}</small></td>
+          <td>{{ booking.venue }}</td>
+          <td>{{ booking.created_at|localdate }}</td>
+          <td>{% if quote %}{{ quote.amount|zmw }}<br>{{ badge(quote.status) }}{% else %}<span class="text-muted">Not sent</span>{% endif %}</td>
+          <td>{{ badge(booking.status) }}</td>
+          <td class="text-end">
+            <div class="request-actions">
+              <a class="btn btn-sm btn-outline-success" href="{{ url_for('planner.booking_detail', booking_id=booking.id) }}">View</a>
+              <form method="post" action="{{ url_for('planner.booking_accept', booking_id=booking.id) }}" data-confirm="Accept the {{ booking.event_type }} request from {{ booking.client.full_name }}?">
+                {{ csrf() }}
+                <button class="btn btn-sm btn-green" type="submit">Accept</button>
+              </form>
+              <a class="btn btn-sm btn-outline-danger" href="{{ url_for('planner.booking_detail', booking_id=booking.id) }}#reject-reason" title="Rejecting needs a reason, which you enter on the request page">Reject</a>
+            </div>
+          </td>
+        </tr>
+      {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% else %}
+    {{ empty("inbox", "No pending requests", "New booking requests from clients will appear here for you to accept, quote, or decline.") }}
+  {% endif %}
+</section>
+
+<div class="row g-4 dash-section">
+  <div class="col-xl-7">
+    <section class="panel h-100">
+      <div class="panel-head">
+        <h2>Requests per month</h2>
+        <span class="panel-note">Last 6 months</span>
+      </div>
+      <div class="chart-box">
+        <canvas id="planner-bookings-chart" aria-label="Bar chart of booking requests and confirmed bookings per month" role="img"></canvas>
+      </div>
+      <div id="planner-bookings-chart-empty" hidden>
+        {{ empty("bar-chart", "No booking requests yet", "The chart fills in as clients send you requests.") }}
+      </div>
+    </section>
+  </div>
+  <div class="col-xl-5">
+    <section class="panel h-100">
+      <div class="panel-head">
+        <h2>Your event ticket sales</h2>
+        <a href="{{ url_for('planner.my_events') }}">My events</a>
+      </div>
+      <dl class="metric-list">
+        <div><dt>Tickets issued for your events</dt><dd>{{ stats.tickets_sold }}</dd></div>
+        <div><dt>Verified payments (live)</dt><dd>{{ stats.revenue_live|zmw }}</dd></div>
+        {% if stats.revenue_simulated %}
+        <div><dt>Verified payments (simulation, not real money)</dt><dd>{{ stats.revenue_simulated|zmw }}</dd></div>
+        {% endif %}
+        <div><dt>Events submitted</dt><dd>{{ stats.events }}</dd></div>
+        <div><dt>Services listed</dt><dd>{{ stats.services }}</dd></div>
+      </dl>
+      <p class="panel-note mb-0">Only verified payments are counted. Quotations are not income until the client pays you.</p>
+    </section>
+  </div>
+</div>
+
+<div class="row g-4 dash-section">
+  <div class="col-xl-6">
+    <section class="panel h-100" id="schedule">
+      <div class="panel-head">
+        <h2>Upcoming schedule</h2>
+        <a href="{{ url_for('planner.bookings', status='accepted') }}">Accepted bookings</a>
+      </div>
+      {% if schedule %}
+      <ul class="list-rows">
+        {% for row in schedule %}
+        {% set item = row.item %}
+        <li>
+          <span class="schedule-date"><strong>{{ row.when.strftime('%d') }}</strong>{{ row.when.strftime('%b') }}</span>
+          <div class="row-main">
+            {% if row.kind == "booking" %}
+            <a href="{{ url_for('planner.booking_detail', booking_id=item.id) }}">{{ item.event_type }}</a>
+            <span>Booking for {{ item.client.full_name }} · {{ row.when.strftime('%H:%M') }} · {{ item.venue }}</span>
+            {% else %}
+            <a href="{{ url_for('events.detail', event_id=item.id) }}">{{ item.title }}</a>
+            <span>Your event · {{ row.when.strftime('%H:%M') }} · {{ item.venue }}</span>
+            {% endif %}
+          </div>
+          {{ badge(item.status if row.kind == "booking" else item.publication_status) }}
+        </li>
+        {% endfor %}
+      </ul>
+      {% else %}
+        {{ empty("calendar", "Nothing scheduled", "Accepted bookings and your published events with future dates appear here.") }}
+      {% endif %}
+    </section>
+  </div>
+  <div class="col-xl-6">
+    <section class="panel h-100">
+      <div class="panel-head">
+        <h2>Recent notifications</h2>
+        {% if notifications %}<a href="{{ url_for('planner.notifications') }}">View all</a>{% endif %}
+      </div>
+      {% if notifications %}
+      <ul class="list-rows">
+        {% for note in notifications %}
+        {% set link = safe_link(note.link) %}
+        <li>
+          <div class="row-main">
+            {% if link %}<a href="{{ link }}">{{ note.title }}</a>{% else %}<strong>{{ note.title }}</strong>{% endif %}
+            <span>{{ note.created_at|localdt }}</span>
+          </div>
+          {% if not note.is_read %}<span class="status status-new"><i class="bi bi-envelope-fill" aria-hidden="true"></i> Unread</span>{% endif %}
+        </li>
+        {% endfor %}
+      </ul>
+      {% else %}
+        {{ empty("bell", "No notifications", "Updates about bookings and events will appear here.") }}
+      {% endif %}
+    </section>
+  </div>
+</div>
+
+<div class="quick-actions">
+  <a class="quick-action" href="{{ url_for('planner.services') }}"><i class="bi bi-briefcase" aria-hidden="true"></i>Manage services</a>
+  <a class="quick-action" href="{{ url_for('planner.bookings') }}"><i class="bi bi-inbox" aria-hidden="true"></i>Booking requests</a>
+  <a class="quick-action" href="{{ url_for('planner.create_event') }}"><i class="bi bi-calendar-plus" aria-hidden="true"></i>Submit an event</a>
+  <a class="quick-action" href="{{ url_for('planner.my_events') }}"><i class="bi bi-calendar-event" aria-hidden="true"></i>My events</a>
+  <a class="quick-action" href="{{ url_for('planner.edit_profile') }}"><i class="bi bi-pencil-square" aria-hidden="true"></i>Update profile</a>
+</div>
+
+<script id="dash-charts" type="application/json">{{ charts|tojson }}</script>
+{% endblock %}
+
+{% block extra_js %}
+<script src="{{ url_for('static', filename='vendor/chartjs/chart.umd.min.js') }}"></script>
+<script src="{{ url_for('static', filename='js/dashboard_charts.js') }}"></script>
+{% endblock %}

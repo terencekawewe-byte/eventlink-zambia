@@ -1,0 +1,65 @@
+{% set STATUS_ICONS = {
+  "approved": "check-circle-fill", "published": "check-circle-fill", "successful": "check-circle-fill",
+  "paid": "check-circle-fill", "valid": "check-circle-fill", "accepted": "check-circle-fill",
+  "completed": "check2-all", "active": "check-circle-fill", "available": "check-circle-fill",
+  "verified": "patch-check-fill", "reviewed": "check2",
+  "pending": "hourglass-split", "requested": "hourglass-split", "in_progress": "arrow-repeat",
+  "not_open": "clock", "new": "envelope-fill", "selling_fast": "graph-up-arrow",
+  "rejected": "x-circle-fill", "failed": "x-circle-fill", "declined": "x-circle-fill",
+  "cancelled": "slash-circle", "suspended": "pause-circle-fill", "refunded": "arrow-counterclockwise",
+  "sold_out": "x-octagon", "closed": "lock-fill", "ended": "flag-fill", "unavailable": "dash-circle",
+  "low_sales": "graph-down-arrow", "redeemed": "door-open-fill",
+  "draft": "pencil", "unpublished": "eye-slash", "inactive": "dash-circle"
+} %}
+{% set STATUS_LABELS = {"not_open": "Sales not open", "sold_out": "Sold out", "selling_fast": "Selling fast", "low_sales": "Low sales", "in_progress": "In progress"} %}
+
+{% macro badge(status, label=None) -%}
+<span class="status status-{{ status }}"><i class="bi bi-{{ STATUS_ICONS.get(status, 'circle-fill') }}" aria-hidden="true"></i> {{ label or STATUS_LABELS.get(status) or status|replace('_', ' ')|title }}</span>
+{%- endmacro %}
+
+{% macro csrf() -%}
+<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+{%- endmacro %}
+
+{% macro poster(event) -%}
+{% set image = event.poster_path|upload %}
+{% if image %}
+<img class="event-poster" src="{{ url_for('static', filename=image) }}" alt="Poster for {{ event.title }}">
+{% else %}
+<div class="poster-fallback" role="img" aria-label="No poster available"><i class="bi bi-calendar2-event"></i></div>
+{% endif %}
+{%- endmacro %}
+
+{% macro empty(icon, title, text, action_url=None, action_label=None) -%}
+<div class="empty-state">
+  <span class="empty-icon"><i class="bi bi-{{ icon }}" aria-hidden="true"></i></span>
+  <h2>{{ title }}</h2>
+  <p>{{ text }}</p>
+  {% if action_url %}
+  <a class="btn btn-pill btn-pill-solid" href="{{ action_url }}">{{ action_label }} <i class="bi bi-arrow-right" aria-hidden="true"></i></a>
+  {% endif %}
+</div>
+{%- endmacro %}
+
+{% macro section_head(eyebrow, title, subtitle=None, link_url=None, link_label=None) -%}
+<div class="section-head">
+  <div>
+    <p class="eyebrow">{{ eyebrow }}</p>
+    <h2>{{ title }}</h2>
+    {% if subtitle %}<p class="section-sub">{{ subtitle }}</p>{% endif %}
+  </div>
+  {% if link_url %}
+  <a class="btn btn-pill" href="{{ link_url }}">{{ link_label }} <i class="bi bi-arrow-right" aria-hidden="true"></i></a>
+  {% endif %}
+</div>
+{%- endmacro %}
+
+{% macro pager(result) -%}
+{% if result.pages > 1 %}
+<nav class="pager" aria-label="Pagination">
+  {% for number in range(1, result.pages + 1) %}
+    <a href="?{% for key, value in request.args.items() if key != 'page' %}{{ key|urlencode }}={{ value|urlencode }}&{% endfor %}page={{ number }}" {% if number == result.page %}aria-current="page"{% endif %}>{{ number }}</a>
+  {% endfor %}
+</nav>
+{% endif %}
+{%- endmacro %}

@@ -1,0 +1,25 @@
+{% extends "layouts/dashboard.html" %}
+{% from "partials/ui.html" import badge %}
+{% block title %}Order {{ order.order_reference }} · EventLink Zambia{% endblock %}
+{% block page %}
+<div class="panel">
+  <h1>{{ order.order_reference }}</h1>
+  <p>{{ order.client.full_name }} · {{ order.event.title }} · {{ badge(order.order_status) }}</p>
+  <p>Total {{ order.total_amount|zmw }} · created {{ order.created_at|localdt }}</p>
+  <h2>Items</h2>
+  {% for item in order.items %}
+    <p>{{ item.quantity }} × {{ item.ticket_type.name }} at {{ item.unit_price|zmw }} = {{ item.subtotal|zmw }}</p>
+  {% endfor %}
+  <h2>Payments</h2>
+  {% for payment in order.payments %}
+    <p>{{ payment.payment_reference }} · {{ badge(payment.status) }} · {{ payment.amount|zmw }}{% if payment.is_simulated %} · simulation{% endif %}</p>
+    {% if payment.provider_reference %}<p class="meta">Provider reference {{ payment.provider_reference }}</p>{% endif %}
+  {% endfor %}
+  <h2>Tickets</h2>
+  {% for item in order.items %}
+    {% for ticket in item.tickets %}
+      <p>{{ ticket.ticket_code }} · {{ badge(ticket.status) }}</p>
+    {% endfor %}
+  {% endfor %}
+</div>
+{% endblock %}

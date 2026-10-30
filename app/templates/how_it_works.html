@@ -1,0 +1,45 @@
+{% extends "base.html" %}
+{% from "partials/ui.html" import section_head %}
+{% block title %}How it works · EventLink Zambia{% endblock %}
+
+{% block content %}
+{% macro step_cards(steps) -%}
+<div class="steps">
+  {% for step in steps %}
+  <article class="step">
+    <span class="step-number">{{ "%02d" % loop.index }}</span>
+    <span class="step-icon"><i class="bi bi-{{ step.icon }}" aria-hidden="true"></i></span>
+    <h3>{{ step.title }}</h3>
+    <p>{{ step.text }}</p>
+  </article>
+  {% endfor %}
+</div>
+{%- endmacro %}
+
+<section class="home-section">
+  {{ section_head("Simple", "How it works", "Three steps from discovering an event to holding your ticket.") }}
+  {{ step_cards([
+    {"icon": "search", "title": "Discover", "text": "Search published events by city, date, category, or price."},
+    {"icon": "ticket-perforated", "title": "Get tickets", "text": "Choose a ticket category. Tickets are issued only after payment is verified."},
+    {"icon": "qr-code", "title": "Show your QR ticket", "text": "Open your ticket from your dashboard and present the QR code at the entrance."},
+  ]) }}
+</section>
+
+<section class="home-section">
+  {{ section_head("For clients", "Booking a planner", "Three steps to get a professional to plan your occasion.") }}
+  {{ step_cards([
+    {"icon": "people", "title": "Choose a planner", "text": "Compare approved planners by speciality, location, services, and starting price."},
+    {"icon": "pencil-square", "title": "Send a request", "text": "Share your event date, venue, guests, and budget. The planner accepts and can send a quotation."},
+    {"icon": "stars", "title": "Enjoy your event", "text": "Follow progress from your dashboard until the planner marks your booking as completed."},
+  ]) }}
+</section>
+
+<section class="home-section">
+  {{ section_head("For planners", "Grow your business", "Three steps to start receiving bookings and selling tickets.", url_for("auth.planner_register"), "Apply as a planner") }}
+  {{ step_cards([
+    {"icon": "briefcase", "title": "Apply", "text": "Submit your business details, services, and portfolio. An administrator reviews your application."},
+    {"icon": "calendar-check", "title": "Manage bookings", "text": "Accept requests, send quotations, and update progress from your planner dashboard."},
+    {"icon": "megaphone", "title": "Sell tickets", "text": "Submit public events with ticket categories. They go live once approved."},
+  ]) }}
+</section>
+{% endblock %}

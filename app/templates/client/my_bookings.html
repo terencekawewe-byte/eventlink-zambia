@@ -1,0 +1,37 @@
+{% extends "layouts/dashboard.html" %}
+{% from "partials/ui.html" import badge, empty %}
+{% block title %}My bookings · EventLink Zambia{% endblock %}
+{% block page %}
+<div class="dash-head">
+  <div>
+    <p class="eyebrow">Bookings</p>
+    <h1>My planner bookings</h1>
+    <p>Track your requests to event planners and any quotations they send.</p>
+  </div>
+  <a class="btn btn-pill btn-pill-solid" href="{{ url_for('events.planners') }}"><i class="bi bi-plus-lg" aria-hidden="true"></i> Request a planner</a>
+</div>
+{% if bookings %}
+<div class="panel">
+  <div class="table-responsive">
+    <table class="table align-middle mb-0">
+      <thead><tr><th>Service</th><th>Event date</th><th>Planner</th><th>Status</th><th>Quotation</th><th></th></tr></thead>
+      <tbody>
+        {% for booking in bookings %}
+        {% set quote = booking.quotations[-1] if booking.quotations else None %}
+        <tr>
+          <td><strong>{{ booking.event_type }}</strong><div class="meta">{{ booking.venue }}</div></td>
+          <td>{{ booking.event_date.strftime('%d %b %Y') }}<div class="meta">{{ booking.start_time.strftime('%H:%M') }}</div></td>
+          <td>{{ booking.planner.business_name }}</td>
+          <td>{{ badge(booking.status) }}</td>
+          <td>{% if quote %}{{ quote.amount|zmw }}<div>{{ badge(quote.status) }}</div>{% else %}<span class="meta">None yet</span>{% endif %}</td>
+          <td class="text-end"><a class="btn btn-sm btn-outline-success" href="{{ url_for('client.booking_detail', booking_id=booking.id) }}">Details</a></td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% else %}
+{{ empty("calendar2-check", "No booking requests", "Choose a verified planner to send a booking request.", url_for('events.planners'), "Find a planner") }}
+{% endif %}
+{% endblock %}

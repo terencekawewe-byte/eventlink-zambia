@@ -1,0 +1,51 @@
+{% extends "layouts/dashboard.html" %}
+{% from "partials/ui.html" import badge, pager %}
+{% block title %}Events · EventLink Zambia{% endblock %}
+{% block page %}
+<h1>Events</h1>
+{% set keep = {} %}
+{% if term %}{% set _ = keep.update(q=term) %}{% endif %}
+{% if category %}{% set _ = keep.update(category=category) %}{% endif %}
+<nav class="inbox-tabs" aria-label="Filter events by approval status">
+  <a href="{{ url_for('admin.events', **keep) }}"{% if not status %} aria-current="page"{% endif %}>All</a>
+  {% for value in ['pending', 'approved', 'rejected', 'draft'] %}
+    <a href="{{ url_for('admin.events', status=value, **keep) }}"{% if status == value %} aria-current="page"{% endif %}>{{ value|title }}</a>
+  {% endfor %}
+</nav>
+<form class="filters" method="get">
+  {% if status %}<input type="hidden" name="status" value="{{ status }}">{% endif %}
+  <div class="row g-2">
+    <div class="col-md-6"><label class="form-label" for="q">Search title, venue, location, or organiser</label><input class="form-control" id="q" name="q" value="{{ term }}"></div>
+    <div class="col-md-3"><label class="form-label" for="category">Category</label>
+      <select class="form-select" id="category" name="category">
+        <option value="">All categories</option>
+        {% for item in categories %}<option value="{{ item.id }}" {% if category == item.id %}selected{% endif %}>{{ item.name }}</option>{% endfor %}
+      </select>
+    </div>
+    <div class="col-md-3 d-flex align-items-end gap-2">
+      <button class="btn btn-green" type="submit">Search</button>
+      {% if term or category %}<a class="btn btn-outline-secondary" href="{{ url_for('admin.events', status=status or None) }}">Clear</a>{% endif %}
+    </div>
+  </div>
+</form>
+<p class="panel-note">{{ result.total }} event{{ '' if result.total == 1 else 's' }} found.</p>
+<div class="table-responsive">
+  <table class="table align-middle">
+    <thead><tr><th>Title</th><th>Organiser</th><th>Category</th><th>When</th><th>Approval</th><th>Publication</th><th></th></tr></thead>
+    <tbody>
+      {% for event in result["items"] %}
+      <tr>
+        <td>{{ event.title }}<div class="meta">{{ event.venue }}, {{ event.location }}</div></td>
+        <td>{{ event.organiser.full_name }}</td>
+        <td>{{ event.category.name }}</td>
+        <td>{{ event.start_datetime|localdt }}</td>
+        <td>{{ badge(event.approval_status) }}</td>
+        <td>{{ badge(event.publication_status) }}</td>
+        <td><a href="{{ url_for('admin.event_detail', event_id=event.id) }}">Review</a></td>
+      </tr>
+      {% else %}<tr><td colspan="7">No events in this list.</td></tr>{% endfor %}
+    </tbody>
+  </table>
+</div>
+{{ pager(result) }}
+{% endblock %}

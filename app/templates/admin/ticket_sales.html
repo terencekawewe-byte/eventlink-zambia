@@ -1,0 +1,100 @@
+{% extends "layouts/dashboard.html" %}
+{% from "partials/ui.html" import badge, pager %}
+{% block title %}Ticket sales · EventLink Zambia{% endblock %}
+{% block page %}
+<h1>Ticket sales</h1>
+<nav class="inbox-tabs" aria-label="Ticket sales views">
+  <a href="{{ url_for('admin.ticket_sales') }}"{% if view == 'categories' %} aria-current="page"{% endif %}>By ticket category</a>
+  <a href="{{ url_for('admin.ticket_sales', view='issued') }}"{% if view == 'issued' %} aria-current="page"{% endif %}>Issued tickets</a>
+</nav>
+
+{% if view == 'issued' %}
+<form class="filters" method="get">
+  <input type="hidden" name="view" value="issued">
+  <div class="row g-2">
+    <div class="col-md-8"><label class="form-label" for="q">Ticket code, event, or holder</label><input class="form-control" id="q" name="q" value="{{ term }}"></div>
+    <div class="col-md-4"><label class="form-label" for="status">Ticket status</label>
+      <select class="form-select" id="status" name="status">
+        <option value="">Any status</option>
+        {% for value in ['valid', 'redeemed', 'refunded', 'cancelled'] %}<option value="{{ value }}" {% if status == value %}selected{% endif %}>{{ value|title }}</option>{% endfor %}
+      </select>
+    </div>
+    <div class="col-6 col-md-4"><label class="form-label" for="date_from">Issued from</label><input class="form-control" type="date" id="date_from" name="date_from" value="{{ date_from }}"></div>
+    <div class="col-6 col-md-4"><label class="form-label" for="date_to">Issued to</label><input class="form-control" type="date" id="date_to" name="date_to" value="{{ date_to }}"></div>
+    <div class="col-md-4 d-flex align-items-end gap-2">
+      <button class="btn btn-green" type="submit">Filter</button>
+      {% if term or status or date_from or date_to %}<a class="btn btn-outline-secondary" href="{{ url_for('admin.ticket_sales', view='issued') }}">Clear</a>{% endif %}
+    </div>
+  </div>
+</form>
+<p class="panel-note">{{ result.total }} ticket{{ '' if result.total == 1 else 's' }} found. Tickets are only issued after a verified payment.</p>
+<div class="table-responsive">
+  <table class="table align-middle">
+    <thead><tr><th>Ticket code</th><th>Event</th><th>Category</th><th>Holder</th><th>Status</th><th>Issued</th></tr></thead>
+    <tbody>
+      {% for ticket in result["items"] %}
+      <tr>
+        <td><code>{{ ticket.ticket_code }}</code></td>
+        <td><a href="{{ url_for('admin.event_detail', event_id=ticket.event_id) }}">{{ ticket.event.title }}</a></td>
+        <td>{{ ticket.ticket_type.name }}</td>
+        <td><a href="{{ url_for('admin.user_detail', user_id=ticket.client_id) }}">{{ ticket.client.full_name }}</a></td>
+        <td>{{ badge(ticket.status) }}</td>
+        <td>{{ ticket.issued_at|localdt }}</td>
+      </tr>
+      {% else %}<tr><td colspan="6">No tickets match these filters.</td></tr>{% endfor %}
+    </tbody>
+  </table>
+</div>
+{% else %}
+<form class="filters" method="get">
+  <div class="row g-2">
+    <div class="col-md-4"><label class="form-label" for="q">Event title</label><input class="form-control" id="q" name="q" value="{{ term }}"></div>
+    <div class="col-6 col-md-3"><label class="form-label" for="category">Event category</label>
+      <select class="form-select" id="category" name="category">
+        <option value="">All categories</option>
+        {% for item in categories %}<option value="{{ item.id }}" {% if category == item.id %}selected{% endif %}>{{ item.name }}</option>{% endfor %}
+      </select>
+    </div>
+    <div class="col-6 col-md-3"><label class="form-label" for="timing">Event date</label>
+      <select class="form-select" id="timing" name="timing">
+        <option value="">Any time</option>
+        <option value="upcoming" {% if timing == 'upcoming' %}selected{% endif %}>Upcoming or running</option>
+        <option value="past" {% if timing == 'past' %}selected{% endif %}>Ended</option>
+      </select>
+    </div>
+    <div class="col-md-2 d-flex align-items-end gap-2">
+      <button class="btn btn-green" type="submit">Filter</button>
+      {% if term or category or timing %}<a class="btn btn-outline-secondary" href="{{ url_for('admin.ticket_sales') }}">Clear</a>{% endif %}
+    </div>
+  </div>
+</form>
+<div class="totals-strip" aria-label="Totals for these filters">
+  <span><strong>{{ totals.sold }}</strong> sold</span>
+  <span><strong>{{ totals.reserved }}</strong> reserved in unpaid orders</span>
+  <span><strong>{{ totals.capacity - totals.sold - totals.reserved }}</strong> remaining of {{ totals.capacity }}</span>
+</div>
+<div class="table-responsive">
+  <table class="table align-middle">
+    <thead><tr><th>Event</th><th>Category</th><th>Price</th><th>Sold</th><th>Reserved</th><th>Remaining</th><th>Sell-through</th></tr></thead>
+    <tbody>
+      {% for ticket in result["items"] %}
+      {% set percent = ((ticket.quantity_sold * 100) // ticket.quantity_total) if ticket.quantity_total else 0 %}
+      <tr>
+        <td><a href="{{ url_for('admin.event_detail', event_id=ticket.event_id) }}">{{ ticket.event.title }}</a><div class="meta">{{ ticket.event.start_datetime|localdt }}</div></td>
+        <td>{{ ticket.name }}</td>
+        <td>{{ ticket.price|zmw }}</td>
+        <td>{{ ticket.quantity_sold }}</td>
+        <td>{{ ticket.quantity_reserved }}</td>
+        <td>{{ ticket.remaining }}</td>
+        <td class="sell-through">
+          <div class="progress" role="progressbar" aria-label="{{ ticket.name }} sold" aria-valuenow="{{ percent }}" aria-valuemin="0" aria-valuemax="100" style="height: .45rem;"><div class="progress-bar" style="width: {{ percent }}%"></div></div>
+          <small>{{ percent }}%</small>
+        </td>
+      </tr>
+      {% else %}<tr><td colspan="7">No ticket categories match these filters.</td></tr>{% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endif %}
+{{ pager(result) }}
+{% endblock %}

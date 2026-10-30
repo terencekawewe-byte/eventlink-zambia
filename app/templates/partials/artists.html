@@ -1,0 +1,74 @@
+{% macro artist_photo(image, initials, cls="") -%}
+{% set path = image|upload %}
+<span class="artist-photo {{ cls }}{% if path %} has-image{% endif %}" data-artist-preview>
+  {% if path %}<img src="{{ url_for('static', filename=path) }}" alt="" loading="lazy" data-fallback>{% endif %}
+  <span class="artist-initials" aria-hidden="true">{{ initials }}</span>
+</span>
+{%- endmacro %}
+
+{% macro artist_editor_card(row, categories) -%}
+{% set key = row.key %}
+{% set initials = (row.name.split()[:2]|map("first")|join|upper) if row.name else "" %}
+<div class="artist-edit-card" data-artist-card>
+  <input type="hidden" name="artist_key" value="{{ key }}" data-artist-key>
+  <input type="hidden" name="artist_id" value="{{ row.id }}">
+  <div class="artist-edit-media">
+    {{ artist_photo(row.image, initials or "", "artist-photo-edit") }}
+    <label class="btn btn-sm btn-outline-success artist-photo-btn" for="artist-photo-{{ key }}" data-artist-photo-label>
+      <i class="bi bi-camera" aria-hidden="true"></i> <span data-artist-photo-text>{{ "Change photo" if row.image else "Choose photo" }}</span>
+    </label>
+    <input class="artist-photo-input" id="artist-photo-{{ key }}" type="file" name="artist_photo_{{ key }}" accept="image/jpeg,image/png,image/webp" data-artist-photo>
+    <small class="artist-photo-hint">JPEG, PNG or WebP · max 2 MB</small>
+    <div class="artist-photo-error text-danger small" role="alert" data-artist-error></div>
+  </div>
+  <div class="artist-edit-fields">
+    <div class="row g-2">
+      <div class="col-sm-7">
+        <label class="form-label" for="artist-name-{{ key }}">Full name</label>
+        <input class="form-control" id="artist-name-{{ key }}" name="artist_name" maxlength="120" value="{{ row.name }}" placeholder="e.g. Mampi" data-artist-name>
+      </div>
+      <div class="col-sm-5">
+        <label class="form-label" for="artist-category-{{ key }}">Category</label>
+        <select class="form-select" id="artist-category-{{ key }}" name="artist_category">
+          <option value="">Choose…</option>
+          {% for item in categories %}<option value="{{ item }}" {% if row.category == item %}selected{% endif %}>{{ item }}</option>{% endfor %}
+        </select>
+      </div>
+      <div class="col-12">
+        <label class="form-label" for="artist-description-{{ key }}">Performance description <span class="text-muted">(optional)</span></label>
+        <textarea class="form-control" id="artist-description-{{ key }}" name="artist_description" rows="2" maxlength="500" placeholder="e.g. Headline set with live band, 9 pm">{{ row.description }}</textarea>
+      </div>
+    </div>
+  </div>
+  <button class="artist-remove" type="button" data-remove-artist aria-label="Remove {{ row.name or 'this artist' }}" title="Remove artist"><i class="bi bi-trash" aria-hidden="true"></i></button>
+</div>
+{%- endmacro %}
+
+{% macro artist_cards(artists, heading="Artists Performing at This Event") -%}
+{% if artists %}
+<section class="panel event-artists" aria-labelledby="artists-heading">
+  <div class="event-artists-head">
+    <h2 id="artists-heading">{{ heading }}</h2>
+    <span class="meta">{{ artists|length }} performer{{ '' if artists|length == 1 else 's' }}</span>
+  </div>
+  <div class="artist-grid">
+    {% for artist in artists %}
+    <article class="artist-card">
+      <div class="artist-card-media">
+        {% set path = artist.artist_image|upload %}
+        <span class="artist-photo artist-photo-cover{% if path %} has-image{% endif %}">
+          {% if path %}<img src="{{ url_for('static', filename=path) }}" alt="Photo of {{ artist.artist_name }}" loading="lazy" data-fallback>{% endif %}
+          <span class="artist-initials" aria-hidden="true">{{ artist.initials }}</span>
+        </span>
+      </div>
+      <div class="artist-card-body">
+        <span class="artist-category">{{ artist.artist_category }}</span>
+        <h3>{{ artist.artist_name }}</h3>
+        {% if artist.performance_description %}<p>{{ artist.performance_description }}</p>{% endif %}
+      </div>
+    </article>
+    {% endfor %}
+  </div>
+</section>
+{% endif %}
+{%- endmacro %}

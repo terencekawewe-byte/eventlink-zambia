@@ -1,0 +1,230 @@
+{% from "partials/ui.html" import badge, empty %}
+
+{% macro report_url(endpoint=None, fmt=None, drop=()) -%}
+{%- set args = request.args.to_dict() -%}
+{%- for key in drop %}{% set _ = args.pop(key, None) %}{% endfor -%}
+{%- for key, value in kwargs.items() %}{% if value is none %}{% set _ = args.pop(key, None) %}{% else %}{% set _ = args.update({key: value}) %}{% endif %}{% endfor -%}
+{%- set path_args = dict(request.view_args or {}) -%}
+{%- if fmt %}{% set _ = path_args.update({"fmt": fmt}) %}{% endif -%}
+{{ url_for(endpoint or request.endpoint, **dict(path_args, **args)) }}
+{%- endmacro %}
+
+{% macro filters(report, periods, transaction_types, event_options=None) -%}
+{% set period = report.period %}
+<form class="panel report-filters no-print" method="get" action="{{ url_for(request.endpoint, **(request.view_args or {})) }}" data-report-filters>
+  <div class="report-filter-grid">
+    <div>
+      <label class="form-label" for="report-period">Time period</label>
+      <select class="form-select" id="report-period" name="period" data-period-select>
+        {% for key, label in periods.items() %}
+        <option value="{{ key }}"{% if period.key == key %} selected{% endif %}>{{ label }}</option>
+        {% endfor %}
+      </select>
+    </div>
+    <div class="report-custom" data-custom-range{% if period.key != "custom" %} hidden{% endif %}>
+      <div>
+        <label class="form-label" for="report-from">From</label>
+        <input class="form-control" id="report-from" type="date" name="date_from" value="{{ period.date_from if period.key == 'custom' else request.args.get('date_from', '') }}">
+      </div>
+      <div>
+        <label class="form-label" for="report-to">To</label>
+        <input class="form-control" id="report-to" type="date" name="date_to" value="{{ period.date_to if period.key == 'custom' else request.args.get('date_to', '') }}">
+      </div>
+    </div>
+    {% if event_options is not none %}
+    <div>
+      <label class="form-label" for="report-event">Event</label>
+      <select class="form-select" id="report-event" name="event">
+        <option value="">All my events</option>
+        {% for option in event_options %}
+        <option value="{{ option.id }}"{% if report.event and report.event.id == option.id %} selected{% endif %}>{{ option.title }}</option>
+        {% endfor %}
+      </select>
+    </div>
+    {% endif %}
+    <div>
+      <label class="form-label" for="report-type">Transaction type</label>
+      <select class="form-select" id="report-type" name="type">
+        {% for key, label in transaction_types.items() %}
+        <option value="{{ key }}"{% if report.transaction_type == key %} selected{% endif %}>{{ label }}</option>
+        {% endfor %}
+      </select>
+    </div>
+    {% if caller %}{{ caller() }}{% endif %}
+    <div class="report-filter-actions">
+      <button class="btn btn-green" type="submit" data-report-apply><i class="bi bi-funnel" aria-hidden="true"></i> Apply filters</button>
+      <a class="btn btn-outline-secondary" href="{{ url_for(request.endpoint, **(request.view_args or {})) }}">Reset</a>
+    </div>
+  </div>
+  <p class="report-period-note"><i class="bi bi-calendar3" aria-hidden="true"></i> Showing <strong>{{ period.label }}</strong> · {{ period.range_text }}</p>
+</form>
+{%- endmacro %}
+
+{% macro export_menu(export_endpoint) -%}
+<div class="report-export no-print" role="group" aria-label="Download this report">
+  <span class="report-export-label">Download</span>
+  <a class="btn btn-sm btn-outline-success" href="{{ report_url(export_endpoint, 'pdf') }}" data-report-download><i class="bi bi-file-earmark-pdf" aria-hidden="true"></i> PDF</a>
+  <a class="btn btn-sm btn-outline-success" href="{{ report_url(export_endpoint, 'xlsx') }}" data-report-download><i class="bi bi-file-earmark-spreadsheet" aria-hidden="true"></i> Excel</a>
+  <a class="btn btn-sm btn-outline-success" href="{{ report_url(export_endpoint, 'csv') }}" data-report-download><i class="bi bi-filetype-csv" aria-hidden="true"></i> CSV</a>
+</div>
+{%- endmacro %}
+
+{% macro stat(icon, value, label, note=None, tone="") -%}
+<article class="stat-card report-stat{% if tone %} report-stat-{{ tone }}{% endif %}">
+  <div class="stat-icon{% if tone == 'copper' %} copper{% endif %}"><i class="bi bi-{{ icon }}" aria-hidden="true"></i></div>
+  <strong>{{ value }}</strong>
+  <span>{{ label }}</span>
+  {% if note %}<small>{{ note }}</small>{% endif %}
+</article>
+{%- endmacro %}
+
+{% macro section_title(icon, title, note=None, id=None) -%}
+<div class="report-section-head"{% if id %} id="{{ id }}"{% endif %}>
+  <h2><i class="bi bi-{{ icon }}" aria-hidden="true"></i> {{ title }}</h2>
+  {% if note %}<p>{{ note }}</p>{% endif %}
+</div>
+{%- endmacro %}
+
+{% macro insights(items) -%}
+<div class="insight-grid">
+  {% for item in items %}
+  <article class="insight-card">
+    <span class="insight-icon"><i class="bi bi-{{ item.icon }}" aria-hidden="true"></i></span>
+    <div>
+      <p class="insight-label">{{ item.label }}</p>
+      <strong class="insight-value">{{ item.value }}</strong>
+      <p class="insight-detail">{{ item.detail }}</p>
+    </div>
+  </article>
+  {% endfor %}
+</div>
+{%- endmacro %}
+
+{% macro chart(id, title, note, empty_title, empty_text, label) -%}
+<section class="panel h-100 report-chart">
+  <div class="panel-head">
+    <h2>{{ title }}</h2>
+    {% if note %}<span class="panel-note">{{ note }}</span>{% endif %}
+  </div>
+  <div class="chart-box" data-chart-box>
+    <div class="chart-loading" data-chart-loading><span class="spinner-border spinner-border-sm" aria-hidden="true"></span> Loading chart…</div>
+    <canvas id="{{ id }}" role="img" aria-label="{{ label }}"></canvas>
+  </div>
+  <div id="{{ id }}-empty" hidden>{{ empty("bar-chart", empty_title, empty_text) }}</div>
+  <p class="chart-error" id="{{ id }}-error" hidden><i class="bi bi-exclamation-triangle" aria-hidden="true"></i> This chart could not be drawn. The figures in the tables below are still accurate.</p>
+</section>
+{%- endmacro %}
+
+{% macro event_status(row) -%}{{ badge(row.status, row.status_label) }}{%- endmacro %}
+
+{% macro sell_through(row) -%}
+<div class="sell-through">
+  <div class="progress progress-thin" role="progressbar" aria-label="{{ row.sell_through }}% of tickets sold" aria-valuenow="{{ row.sell_through }}" aria-valuemin="0" aria-valuemax="100">
+    <div class="progress-bar" style="width: {{ [row.sell_through, 100]|min }}%"></div>
+  </div>
+  <small>{{ row.sell_through }}% sold overall</small>
+</div>
+{%- endmacro %}
+
+{% macro event_table(rows, rate, link_events=True) -%}
+<div class="table-responsive">
+  <table class="table align-middle mb-0 request-table report-table">
+    <thead>
+      <tr>
+        <th>Event</th><th>Category</th><th>Event date</th><th>Status</th>
+        <th class="text-end">Tickets available</th><th class="text-end">Sold in period</th><th class="text-end">Remaining</th>
+        <th class="text-end">Ticket revenue</th><th class="text-end">Commission ({{ rate }}%)</th><th class="text-end">Planner earnings ({{ 100 - rate }}%)</th>
+      </tr>
+    </thead>
+    <tbody>
+    {% for row in rows %}
+      <tr>
+        <td>
+          {% if link_events %}<a class="report-link" href="{{ report_url(event=row.event.id) }}">{{ row.event.title }}</a>{% else %}<strong>{{ row.event.title }}</strong>{% endif %}
+          {{ sell_through(row) }}
+        </td>
+        <td>{{ row.event.category.name if row.event.category else "" }}</td>
+        <td>{{ row.event.start_datetime|localdate }}</td>
+        <td>{{ event_status(row) }}</td>
+        <td class="text-end">{{ row.capacity }}</td>
+        <td class="text-end">{{ row.sold }}</td>
+        <td class="text-end">{{ row.remaining }}</td>
+        <td class="text-end">{{ row.net_revenue|zmw }}{% if row.refunds %}<br><small class="text-muted">{{ row.gross|zmw }} less {{ row.refunds|zmw }} refunded</small>{% endif %}</td>
+        <td class="text-end">{{ row.commission|zmw }}</td>
+        <td class="text-end"><strong>{{ row.earnings|zmw }}</strong></td>
+      </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+</div>
+{%- endmacro %}
+
+{% macro booking_table(rows, limit=50, with_planner=False) -%}
+<div class="table-responsive">
+  <table class="table align-middle mb-0 request-table report-table">
+    <thead>
+      <tr><th>Reference</th>{% if with_planner %}<th>Planner</th>{% endif %}<th>Client</th><th>Service</th><th>Booking date</th><th class="text-end">Agreed amount</th><th>Payment status</th><th>Booking status</th></tr>
+    </thead>
+    <tbody>
+    {% for row in rows[:limit] %}
+      <tr>
+        <td><code class="report-ref">{{ row.reference }}</code><br><small class="text-muted">Requested {{ row.requested|localdate }}</small></td>
+        {% if with_planner %}<td>{{ row.planner_name }}</td>{% endif %}
+        <td>{{ row.client_name }}</td>
+        <td>{{ row.service }}</td>
+        <td>{{ row.event_date.strftime('%d %b %Y') }}</td>
+        <td class="text-end">{{ row.agreed_amount|zmw if row.agreed_amount is not none else "—" }}</td>
+        <td><span class="report-pay report-pay-{{ row.payment_status }}">{{ row.payment_label }}</span></td>
+        <td>{{ badge(row.status) }}</td>
+      </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% if rows|length > limit %}<p class="panel-note mt-2 mb-0">Showing the latest {{ limit }} of {{ rows|length }} bookings. Download the report for the full list.</p>{% endif %}
+{%- endmacro %}
+
+{% macro transaction_table(rows, limit=100, with_planner=False) -%}
+{% set TXN_LABELS = {"ticket_sale": "Ticket sale", "refund": "Refund", "payout": "Payout"} %}
+{% set TXN_ICONS = {"ticket_sale": "ticket-perforated", "refund": "arrow-counterclockwise", "payout": "bank"} %}
+<div class="table-responsive">
+  <table class="table align-middle mb-0 request-table report-table">
+    <thead>
+      <tr><th>Date</th><th>Type</th><th>Reference</th>{% if with_planner %}<th>Planner</th>{% endif %}<th>Details</th><th class="text-end">Gross</th><th class="text-end">Commission</th><th class="text-end">Planner share</th><th>Status</th></tr>
+    </thead>
+    <tbody>
+    {% for row in rows[:limit] %}
+      <tr class="report-txn report-txn-{{ row.kind }}">
+        <td>{{ row.when|localdt }}</td>
+        <td><span class="report-txn-type"><i class="bi bi-{{ TXN_ICONS[row.kind] }}" aria-hidden="true"></i> {{ TXN_LABELS[row.kind] }}</span></td>
+        <td><code class="report-ref">{{ row.reference }}</code></td>
+        {% if with_planner %}<td>{{ row.planner_name }}</td>{% endif %}
+        <td>{{ row.detail }}{% if row.client_name %}<br><small class="text-muted">{{ row.client_name }}</small>{% endif %}</td>
+        {% if row.kind == "payout" %}
+        <td class="text-end text-muted">—</td><td class="text-end text-muted">—</td>
+        <td class="text-end"><strong>{{ row.amount|zmw }}</strong><br><small class="text-muted">paid out</small></td>
+        {% else %}
+        <td class="text-end">{{ row.gross|zmw }}</td>
+        <td class="text-end">{{ row.commission|zmw }}</td>
+        <td class="text-end"><strong>{{ row.net|zmw }}</strong></td>
+        {% endif %}
+        <td>{{ badge(row.status) }}</td>
+      </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% if rows|length > limit %}<p class="panel-note mt-2 mb-0">Showing the latest {{ limit }} of {{ rows|length }} records. Download the report for the full list.</p>{% endif %}
+{%- endmacro %}
+
+{% macro finance_list(finance, rate) -%}
+<dl class="metric-list finance-list">
+  <div><dt>Ticket sales (verified payments)</dt><dd>{{ finance.gross|zmw }}</dd></div>
+  <div><dt>Planner booking revenue (verified payments)</dt><dd>{{ finance.booking_revenue|zmw }}</dd></div>
+  <div class="finance-total"><dt>Total gross revenue</dt><dd>{{ finance.total_gross|zmw }}</dd></div>
+  <div class="finance-minus"><dt>Refunded amounts</dt><dd>{% if finance.refunds %}−{% endif %}{{ finance.refunds|zmw }}</dd></div>
+  <div class="finance-total"><dt>Net revenue after refunds</dt><dd>{{ (finance.net_revenue + finance.booking_revenue)|zmw }}</dd></div>
+  <div class="finance-minus"><dt>Platform commission ({{ rate }}%)</dt><dd>{% if finance.total_commission > 0 %}−{% endif %}{{ finance.total_commission|zmw }}</dd></div>
+  <div class="finance-earnings"><dt>Planner earnings ({{ 100 - rate }}%)</dt><dd>{{ finance.total_earnings|zmw }}</dd></div>
+</dl>
+{%- endmacro %}

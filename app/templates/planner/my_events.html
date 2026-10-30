@@ -1,0 +1,48 @@
+{% extends "layouts/dashboard.html" %}
+{% from "partials/ui.html" import badge, empty %}
+{% from "partials/artists.html" import artist_photo %}
+{% block title %}My events · EventLink Zambia{% endblock %}
+{% block page %}
+<div class="d-flex justify-content-between align-items-center">
+  <h1>My events</h1>
+  <a class="btn btn-green" href="{{ url_for('planner.create_event') }}">Create event</a>
+</div>
+{% if events %}
+<div class="table-responsive">
+  <table class="table">
+    <thead><tr><th>Title</th><th>When</th><th>Artists</th><th>Approval</th><th>Publication</th><th></th></tr></thead>
+    <tbody>
+      {% for event in events %}
+      <tr>
+        <td>{{ event.title }}</td>
+        <td>{{ event.start_datetime|localdt }}</td>
+        <td>
+          {% if event.artists %}
+          <a class="artist-avatars text-decoration-none" href="{{ url_for('planner.edit_event', event_id=event.id) }}#artists-section-heading" title="{{ event.artists|map(attribute='artist_name')|join(', ') }}">
+            {% for artist in event.artists[:4] %}{{ artist_photo(artist.artist_image, artist.initials) }}{% endfor %}
+            <span class="artist-more">{{ event.artists|length }} artist{{ '' if event.artists|length == 1 else 's' }}</span>
+          </a>
+          {% else %}
+          <a class="small" href="{{ url_for('planner.edit_event', event_id=event.id) }}#artists-section-heading">Add artists</a>
+          {% endif %}
+        </td>
+        <td>{{ badge(event.approval_status) }}</td>
+        <td>{{ badge(event.publication_status) }}</td>
+        <td>
+          <a href="{{ url_for('planner.edit_event', event_id=event.id) }}">Edit</a>
+          {% if event.approval_status in ['draft', 'rejected', 'pending'] %}
+          <form class="d-inline" method="post" action="{{ url_for('planner.delete_event', event_id=event.id) }}" data-confirm="Delete this event?">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <button class="btn btn-link btn-sm text-danger" type="submit">Delete</button>
+          </form>
+          {% endif %}
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% else %}
+{{ empty("calendar-plus", "No events yet", "Create an event and submit it for approval.") }}
+{% endif %}
+{% endblock %}

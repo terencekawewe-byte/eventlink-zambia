@@ -1,0 +1,114 @@
+{% extends "base.html" %}
+{% block title %}About · EventLink Zambia{% endblock %}
+{% block content %}
+<section class="guide-hero about-hero">
+  <p class="eyebrow"><i class="bi bi-heart-fill" aria-hidden="true"></i> About us</p>
+  <h1>A home for Zambian events</h1>
+  <p class="lead">EventLink Zambia brings event-goers, organisers, and professional planners together on one trusted platform, from a Lusaka concert to a family wedding in Livingstone.</p>
+  <div class="guide-cta-actions mt-4">
+    <a class="btn btn-copper" href="{{ url_for('events.listing') }}">Explore events <i class="bi bi-arrow-right" aria-hidden="true"></i></a>
+    <a class="btn btn-footer-outline" href="{{ url_for('pages.how_it_works') }}">See how it works</a>
+  </div>
+</section>
+
+{% set highlights = [] %}
+{% if stats.events %}{% set _ = highlights.append({"icon": "calendar-event", "value": stats.events, "label": "Published events"}) %}{% endif %}
+{% if stats.planners %}{% set _ = highlights.append({"icon": "people", "value": stats.planners, "label": "Approved planners"}) %}{% endif %}
+{% if stats.towns > 1 %}{% set _ = highlights.append({"icon": "geo-alt", "value": stats.towns, "label": "Towns with events"}) %}{% endif %}
+{% if stats.categories %}{% set _ = highlights.append({"icon": "grid", "value": stats.categories, "label": "Event categories"}) %}{% endif %}
+{% set _ = highlights.append({"icon": "cash-coin", "value": "ZMW", "label": "Prices in Kwacha"}) %}
+{% set _ = highlights.append({"icon": "shield-check", "value": "100%", "label": "Tickets issued after verified payment"}) %}
+{% set _ = highlights.append({"icon": "qr-code", "value": "1 scan", "label": "Per QR ticket"}) %}
+<section class="about-stats" aria-label="EventLink Zambia at a glance">
+  {% for item in highlights[:4] %}
+  <div class="about-stat">
+    <span class="about-stat-icon"><i class="bi bi-{{ item.icon }}" aria-hidden="true"></i></span>
+    <strong>{{ item.value }}</strong>
+    <span>{{ item.label }}</span>
+  </div>
+  {% endfor %}
+</section>
+
+<section class="guide-section about-story">
+  <div class="about-story-text">
+    <p class="eyebrow">Our story</p>
+    <h2>Why we built EventLink Zambia</h2>
+    <p>Finding out what is happening in your city often means scrolling through social media posts, chasing organisers for ticket details, and paying in ways that leave no record. Booking a planner for a wedding or graduation usually depends on word of mouth.</p>
+    <p>EventLink Zambia puts all of that in one place. Clients discover public events and buy tickets securely, or request planning support for weddings, graduations, corporate functions, and private celebrations. Planners get a professional profile and a simple way to manage bookings and sell tickets.</p>
+  </div>
+  <aside class="mission-card">
+    <span class="guide-badge guide-badge-copper"><i class="bi bi-bullseye" aria-hidden="true"></i></span>
+    <h3>Our mission</h3>
+    <p>To make every Zambian event easy to discover, safe to pay for, and simple to plan.</p>
+    <ul class="guide-points">
+      <li><i class="bi bi-check2-circle" aria-hidden="true"></i><span>One place for concerts, festivals, and celebrations</span></li>
+      <li><i class="bi bi-check2-circle" aria-hidden="true"></i><span>Verified tickets with one-time QR codes</span></li>
+      <li><i class="bi bi-check2-circle" aria-hidden="true"></i><span>Trusted, administrator-approved planners</span></li>
+    </ul>
+  </aside>
+</section>
+
+<section class="guide-section">
+  <div class="guide-head">
+    <span class="guide-badge"><i class="bi bi-people" aria-hidden="true"></i></span>
+    <div>
+      <p class="eyebrow">Who we serve</p>
+      <h2>Built for everyone behind an event</h2>
+      <p class="section-sub">Each role has its own dashboard and tools.</p>
+    </div>
+  </div>
+  <div class="audience-grid">
+    <article class="audience-card">
+      <span class="trust-icon"><i class="bi bi-ticket-perforated" aria-hidden="true"></i></span>
+      <h3>Event-goers</h3>
+      <p>Search events by city, date, category, or price, buy tickets in Kwacha, and keep every QR ticket in your account.</p>
+      <a class="audience-link" href="{{ url_for('events.listing') }}">Browse events <i class="bi bi-arrow-right" aria-hidden="true"></i></a>
+    </article>
+    <article class="audience-card">
+      <span class="trust-icon"><i class="bi bi-heart" aria-hidden="true"></i></span>
+      <h3>Families and hosts</h3>
+      <p>Request a planner for a wedding, birthday, graduation, or company function, compare quotations, and follow progress.</p>
+      <a class="audience-link" href="{{ url_for('events.planners') }}">Find a planner <i class="bi bi-arrow-right" aria-hidden="true"></i></a>
+    </article>
+    <article class="audience-card">
+      <span class="trust-icon trust-icon-copper"><i class="bi bi-briefcase" aria-hidden="true"></i></span>
+      <h3>Event planners</h3>
+      <p>Showcase your services, respond to booking requests, and publish your own public events with ticket sales.</p>
+      <a class="audience-link" href="{{ url_for('auth.planner_register') }}">Apply as a planner <i class="bi bi-arrow-right" aria-hidden="true"></i></a>
+    </article>
+  </div>
+</section>
+
+<section class="guide-section">
+  <div class="guide-head">
+    <span class="guide-badge"><i class="bi bi-gem" aria-hidden="true"></i></span>
+    <div>
+      <p class="eyebrow">What we stand for</p>
+      <h2>Our values</h2>
+      <p class="section-sub">The principles behind every feature on the platform.</p>
+    </div>
+  </div>
+  <div class="trust-grid">
+    <article class="trust-card"><span class="trust-icon"><i class="bi bi-flag"></i></span><h3>Made for Zambia</h3><p>Prices are shown in Zambian Kwacha, and phone numbers use the +260 country code.</p></article>
+    <article class="trust-card"><span class="trust-icon"><i class="bi bi-shield-check"></i></span><h3>Trust first</h3><p>Administrators review every planner and publish only complete, approved events.</p></article>
+    <article class="trust-card"><span class="trust-icon"><i class="bi bi-lock"></i></span><h3>Honest payments</h3><p>Ticket stock is reserved during checkout and confirmed only when payment is verified on the server.</p></article>
+    <article class="trust-card"><span class="trust-icon"><i class="bi bi-chat-heart"></i></span><h3>Real support</h3><p>Questions or problems? Our support team responds through the contact page and email.</p></article>
+  </div>
+</section>
+
+<section class="guide-cta">
+  <div>
+    <h2>Be part of Zambia's event community</h2>
+    <p>Join as a client to discover events and book planners, or grow your business as a planner.</p>
+  </div>
+  <div class="guide-cta-actions">
+    {% if current_user %}
+      <a class="btn btn-copper" href="{{ url_for('events.listing') }}">Browse events <i class="bi bi-arrow-right" aria-hidden="true"></i></a>
+      <a class="btn btn-footer-outline" href="{{ url_for('pages.contact') }}">Contact us</a>
+    {% else %}
+      <a class="btn btn-copper" href="{{ url_for('auth.register') }}">Create a free account <i class="bi bi-arrow-right" aria-hidden="true"></i></a>
+      <a class="btn btn-footer-outline" href="{{ url_for('pages.contact') }}">Contact us</a>
+    {% endif %}
+  </div>
+</section>
+{% endblock %}

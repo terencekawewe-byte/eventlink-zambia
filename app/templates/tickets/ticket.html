@@ -1,0 +1,17 @@
+{% extends "base.html" %}
+{% from "partials/ui.html" import badge %}
+{% block title %}Ticket {{ ticket.ticket_code }} · EventLink Zambia{% endblock %}
+{% block content %}
+<article class="ticket-sheet">
+  <p class="eyebrow">EventLink Zambia</p>
+  <h1>{{ ticket.event.title }}</h1>
+  <p>{{ ticket.event.start_datetime|localdt }}</p>
+  <p>{{ ticket.event.venue }}, {{ ticket.event.location }}</p>
+  <p>{{ ticket.ticket_type.name }}</p>
+  <p>Reference {{ ticket.ticket_code }}</p>
+  <p>{{ badge(ticket.status) }}</p>
+  <img class="qr-image" src="{{ url_for('tickets.qr_image', ticket_id=ticket.id) }}" alt="QR code for ticket {{ ticket.ticket_code }}">
+</article>
+<p class="no-print mt-3"><button class="btn btn-green" type="button" data-print>Print</button></p>
+{% endblock %}
+{% block extra_js %}<script src="{{ url_for('static', filename='js/tickets.js') }}"></script>{% endblock %}

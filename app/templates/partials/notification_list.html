@@ -1,0 +1,22 @@
+{% from "partials/ui.html" import empty %}
+{% if notifications %}
+<ul class="list-group">
+  {% for item in notifications %}
+  <li class="list-group-item">
+    <strong>{{ item.title }}</strong>
+    {% if not item.is_read %}<span class="status status-pending">New</span>{% endif %}
+    <p class="mb-1">{{ item.message }}</p>
+    <p class="meta">{{ item.created_at|localdt }}</p>
+    {% if item.link and safe_link(item.link) %}<a href="{{ item.link }}">Open</a>{% endif %}
+    {% if not item.is_read %}
+    <form method="post" action="{{ url_for(current_user.role ~ '.notification_read', notification_id=item.id) }}" class="d-inline">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <button class="btn btn-link btn-sm" type="submit">Mark read</button>
+    </form>
+    {% endif %}
+  </li>
+  {% endfor %}
+</ul>
+{% else %}
+{{ empty("bell", "No notifications", "Updates about tickets, bookings, and approvals appear here.") }}
+{% endif %}

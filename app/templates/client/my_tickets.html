@@ -1,0 +1,36 @@
+{% extends "layouts/dashboard.html" %}
+{% from "partials/ui.html" import badge, empty %}
+{% block title %}My tickets · EventLink Zambia{% endblock %}
+{% block page %}
+<div class="dash-head">
+  <div>
+    <p class="eyebrow">Tickets</p>
+    <h1>My tickets</h1>
+    <p>Tickets are issued after the payment for an order is verified.</p>
+  </div>
+</div>
+{% if tickets %}
+<div class="panel">
+  <div class="table-responsive">
+    <table class="table align-middle mb-0">
+      <thead><tr><th>Event</th><th>Date</th><th>Venue</th><th>Category</th><th>Ticket code</th><th>Status</th><th></th></tr></thead>
+      <tbody>
+        {% for ticket in tickets %}
+        <tr>
+          <td><strong>{{ ticket.event.title }}</strong><div class="meta">{{ ticket.ticket_type.name }}</div></td>
+          <td>{{ ticket.event.start_datetime|localdt }}</td>
+          <td>{{ ticket.event.venue }}{% if ticket.event.location %}<div class="meta">{{ ticket.event.location }}</div>{% endif %}</td>
+          <td>{{ ticket.event.category.name }}</td>
+          <td><code>{{ ticket.ticket_code }}</code></td>
+          <td>{{ badge(ticket.status) }}</td>
+          <td class="text-end"><a class="btn btn-sm btn-outline-success" href="{{ url_for('client.ticket_detail', ticket_id=ticket.id) }}">Open</a></td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% else %}
+{{ empty("ticket-perforated", "No tickets yet", "A ticket appears here after a payment is verified.", url_for('events.listing'), "Browse events") }}
+{% endif %}
+{% endblock %}

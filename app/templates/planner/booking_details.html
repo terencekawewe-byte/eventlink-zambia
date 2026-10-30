@@ -1,0 +1,56 @@
+{% extends "layouts/dashboard.html" %}
+{% from "partials/ui.html" import badge %}
+{% block title %}Booking details · EventLink Zambia{% endblock %}
+{% block page %}
+<div class="panel">
+  <h1>{{ booking.event_type }}</h1>
+  <p>{{ badge(booking.status) }}</p>
+  <p><strong>Client.</strong> {{ booking.client.full_name }} · {{ booking.client.email }} · {{ booking.client.phone }}</p>
+  <p>{{ booking.event_date.strftime('%d %b %Y') }} at {{ booking.start_time.strftime('%H:%M') }} · {{ format_duration(booking.duration) }}</p>
+  <p>{{ booking.venue }} · {{ booking.guest_count }} guests · budget {{ booking.budget|zmw }}</p>
+  <p>Preferred contact: {{ booking.contact_method }}</p>
+  <p>{{ booking.requirements|nl2br }}</p>
+  {% if booking.status == 'pending' %}
+  <form class="d-inline" method="post" action="{{ url_for('planner.booking_accept', booking_id=booking.id) }}" data-confirm="Accept this booking?">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <button class="btn btn-green" type="submit">Accept</button>
+  </form>
+  <form method="post" action="{{ url_for('planner.booking_reject', booking_id=booking.id) }}" class="mt-3">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <label class="form-label" for="reject-reason">Rejection reason</label>
+    <textarea class="form-control mb-2" id="reject-reason" name="reason" required minlength="5"></textarea>
+    <button class="btn btn-outline-danger" type="submit">Reject</button>
+  </form>
+  {% elif booking.status == 'accepted' %}
+  <form method="post" action="{{ url_for('planner.booking_progress', booking_id=booking.id) }}">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <button class="btn btn-green" type="submit">Mark in progress</button>
+  </form>
+  {% elif booking.status == 'in_progress' %}
+  <form method="post" action="{{ url_for('planner.booking_complete', booking_id=booking.id) }}" data-confirm="Mark this booking completed?">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <button class="btn btn-green" type="submit">Mark completed</button>
+  </form>
+  {% endif %}
+  {% if booking.status in ['pending', 'accepted'] %}
+  <form method="post" action="{{ url_for('planner.booking_cancel', booking_id=booking.id) }}" class="mt-3">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <label class="form-label" for="cancel-reason">Cancellation reason</label>
+    <textarea class="form-control mb-2" id="cancel-reason" name="reason" required minlength="5"></textarea>
+    <button class="btn btn-outline-secondary" type="submit">Cancel booking</button>
+  </form>
+  {% endif %}
+  <h2 class="mt-4">Quotation</h2>
+  {% for quotation in booking.quotations %}
+    <p>{{ quotation.amount|zmw }} · {{ badge(quotation.status) }} · {{ quotation.description }}</p>
+  {% else %}<p>No quotation yet.</p>{% endfor %}
+  {% if booking.status in ['pending', 'accepted', 'in_progress'] %}
+  <form method="post" action="{{ url_for('planner.quotation_create', booking_id=booking.id) }}">
+    {{ quote_form.hidden_tag() }}
+    <div class="mb-3">{{ quote_form.amount.label(class="form-label") }}{{ quote_form.amount(class="form-control") }}</div>
+    <div class="mb-3">{{ quote_form.description.label(class="form-label") }}{{ quote_form.description(class="form-control", rows=3) }}</div>
+    {{ quote_form.submit(class="btn btn-green") }}
+  </form>
+  {% endif %}
+</div>
+{% endblock %}

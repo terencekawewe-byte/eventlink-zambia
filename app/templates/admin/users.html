@@ -1,0 +1,72 @@
+{% extends "layouts/dashboard.html" %}
+{% from "partials/ui.html" import badge, pager %}
+{% block title %}Users · EventLink Zambia{% endblock %}
+{% block page %}
+<div class="dash-head">
+  <div>
+    <h1>Users</h1>
+    <p>{{ counts.get('active', 0) }} active · {{ counts.get('suspended', 0) }} suspended</p>
+  </div>
+</div>
+<form class="filters" method="get">
+  <div class="row g-2">
+    <div class="col-md-5"><label class="form-label" for="q">Search name, email, or phone</label><input class="form-control" id="q" name="q" value="{{ term }}"></div>
+    <div class="col-6 col-md-2"><label class="form-label" for="role">Role</label>
+      <select class="form-select" id="role" name="role">
+        <option value="">All roles</option>
+        {% for value in ['client', 'planner', 'admin'] %}<option value="{{ value }}" {% if role == value %}selected{% endif %}>{{ value|title }}</option>{% endfor %}
+      </select>
+    </div>
+    <div class="col-6 col-md-2"><label class="form-label" for="status">Account status</label>
+      <select class="form-select" id="status" name="status">
+        <option value="">Any status</option>
+        {% for value in ['active', 'suspended'] %}<option value="{{ value }}" {% if status == value %}selected{% endif %}>{{ value|title }}</option>{% endfor %}
+      </select>
+    </div>
+    <div class="col-md-3 d-flex align-items-end gap-2">
+      <button class="btn btn-green" type="submit">Search</button>
+      {% if term or role or status %}<a class="btn btn-outline-secondary" href="{{ url_for('admin.users') }}">Clear</a>{% endif %}
+    </div>
+  </div>
+</form>
+<p class="panel-note">{{ result.total }} account{{ '' if result.total == 1 else 's' }} found.</p>
+<div class="table-responsive">
+  <table class="table align-middle">
+    <thead><tr><th>Name</th><th>Email</th><th>Phone</th><th>Role</th><th>Status</th><th>Joined</th><th>Actions</th></tr></thead>
+    <tbody>
+      {% for user in result["items"] %}
+      <tr>
+        <td><a href="{{ url_for('admin.user_detail', user_id=user.id) }}">{{ user.full_name }}</a></td>
+        <td>{{ user.email }}</td>
+        <td>{{ user.phone }}</td>
+        <td>{{ user.role|title }}</td>
+        <td>{{ badge(user.account_status) }}</td>
+        <td>{{ user.created_at|localdate }}</td>
+        <td>
+          <a class="btn btn-outline-secondary btn-sm mb-1" href="{{ url_for('admin.user_detail', user_id=user.id) }}">View</a>
+          {% if user.id == current_user.id %}
+          <span class="panel-note d-block">This is your account.</span>
+          {% elif user.account_status == 'active' %}
+          <form method="post" action="{{ url_for('admin.user_suspend', user_id=user.id) }}" data-confirm="Suspend {{ user.full_name }}? They will not be able to sign in.">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <label class="visually-hidden" for="reason-{{ user.id }}">Suspension reason</label>
+            <input class="form-control form-control-sm mb-1" id="reason-{{ user.id }}" name="reason" placeholder="Reason" required minlength="5" maxlength="500">
+            <button class="btn btn-outline-danger btn-sm" type="submit">Suspend</button>
+          </form>
+          {% else %}
+          <form method="post" action="{{ url_for('admin.user_reactivate', user_id=user.id) }}" data-confirm="Reactivate {{ user.full_name }}?">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <label class="visually-hidden" for="reason-{{ user.id }}">Reactivation reason</label>
+            <input class="form-control form-control-sm mb-1" id="reason-{{ user.id }}" name="reason" placeholder="Reason" required minlength="5" maxlength="500">
+            <button class="btn btn-green btn-sm" type="submit">Reactivate</button>
+          </form>
+          {% endif %}
+        </td>
+      </tr>
+      {% else %}<tr><td colspan="7">No users match that search.</td></tr>{% endfor %}
+    </tbody>
+  </table>
+</div>
+{{ pager(result) }}
+<p class="form-text">Passwords are stored as hashes and are never displayed.</p>
+{% endblock %}

@@ -1,0 +1,131 @@
+{% extends "base.html" %}
+{% block title %}Planner application · EventLink Zambia{% endblock %}
+{% macro field(f, help=None, col="col-md-6") -%}
+<div class="{{ col }} mb-3">
+  {{ f.label(class="form-label") }}{% if f.flags.required %}<span class="req" aria-hidden="true">*</span>{% endif %}
+  {{ f(class="form-select" if f.type == "SelectField" else "form-control", **kwargs) }}
+  {% if help %}<div class="form-text">{{ help }}</div>{% endif %}
+  {% for error in f.errors %}<div class="text-danger small">{{ error }}</div>{% endfor %}
+</div>
+{%- endmacro %}
+{% block content %}
+<form class="auth-shell wide apply-form needs-check" method="post" enctype="multipart/form-data" novalidate>
+  {{ form.hidden_tag() }}
+  <header class="apply-head">
+    <span class="apply-head-icon" aria-hidden="true"><i class="bi bi-briefcase"></i></span>
+    <div>
+      <h1>Apply as an event planner</h1>
+      <p>Your profile stays hidden from the public until an administrator reviews and approves your application. Fields marked <span class="req">*</span> are required.</p>
+    </div>
+  </header>
+
+  {% if files_cleared %}
+  <div class="alert alert-warning d-flex gap-2" role="alert">
+    <i class="bi bi-exclamation-triangle" aria-hidden="true"></i>
+    <span>Please fix the highlighted fields, then choose your logo, portfolio images and PACRA document again. For security, browsers do not keep selected files after a form is returned.</span>
+  </div>
+  {% endif %}
+
+  <section class="apply-section" aria-labelledby="sec-business">
+    <h2 id="sec-business"><i class="bi bi-building" aria-hidden="true"></i> Business information</h2>
+    <div class="row">
+      {{ field(form.business_name, required=true, autocomplete="organization", placeholder="e.g. Copperbelt Celebrations Ltd") }}
+      {{ field(form.business_category, required=true) }}
+      {{ field(form.pacra_number, "As shown on your PACRA certificate of incorporation or registration.", required=true, placeholder="e.g. 120190012345") }}
+      {{ field(form.pacra_reference, "Optional. A PACRA verification or search reference code, if you have one.", placeholder="e.g. PACRA-REF-2026-0001") }}
+      {{ field(form.location, required=true, list="towns", placeholder="e.g. Lusaka") }}
+      {{ field(form.specialities, "Separate with commas, for example: Weddings, Graduations, Corporate dinners.", required=true) }}
+      {{ field(form.biography, "Introduce your business to customers. This appears on your public profile.", col="col-12", rows=4, required=true, minlength="20", maxlength="2000") }}
+      {{ field(form.experience, "Years in business and examples of events you have delivered.", col="col-12", rows=3, required=true, minlength="20", maxlength="2000") }}
+      {{ field(form.services, "Enter one service on each line (up to 12), for example: Full wedding planning.", col="col-12", rows=4, required=true) }}
+    </div>
+  </section>
+
+  <section class="apply-section" aria-labelledby="sec-contact">
+    <h2 id="sec-contact"><i class="bi bi-person-lines-fill" aria-hidden="true"></i> Contact information</h2>
+    <div class="row">
+      {{ field(form.full_name, required=true, autocomplete="name", placeholder="e.g. Rosemary Lungu") }}
+      {{ field(form.email, type="email", required=true, autocomplete="email") }}
+      {{ field(form.phone, required=true, autocomplete="tel", placeholder="+260971234567", **{"data-phone": "1"}) }}
+      {{ field(form.business_address, required=true, autocomplete="street-address", placeholder="e.g. Plot 12, Cairo Road, Lusaka") }}
+    </div>
+  </section>
+
+  <section class="apply-section" aria-labelledby="sec-images">
+    <h2 id="sec-images"><i class="bi bi-images" aria-hidden="true"></i> Business images</h2>
+    <p class="apply-note">Clear images help customers trust your business. Use JPEG, PNG or WebP files of <strong>2 MB or less</strong> each. Square images work best for logos; landscape photos work best for your portfolio.</p>
+    <div class="row g-3">
+      <div class="col-md-5">
+        <div class="upload-box" data-image-picker data-max-files="1" data-max-bytes="2097152" data-types="image/jpeg,image/png,image/webp">
+          <label class="form-label" for="profile_photo">Business logo or profile photo</label>
+          <label class="upload-drop" for="profile_photo">
+            <i class="bi bi-person-badge" aria-hidden="true"></i>
+            <span><strong>Choose an image</strong><small>One file · JPEG, PNG or WebP · max 2 MB</small></span>
+          </label>
+          <input class="upload-input" id="profile_photo" name="profile_photo" type="file" accept="image/jpeg,image/png,image/webp">
+          <div class="upload-previews" aria-live="polite"></div>
+          <div class="upload-error text-danger small" role="alert"></div>
+        </div>
+      </div>
+      <div class="col-md-7">
+        <div class="upload-box" data-image-picker data-max-files="{{ config.PORTFOLIO_MAX_IMAGES }}" data-max-bytes="2097152" data-types="image/jpeg,image/png,image/webp">
+          <label class="form-label" for="portfolio">Portfolio images</label>
+          <label class="upload-drop" for="portfolio">
+            <i class="bi bi-images" aria-hidden="true"></i>
+            <span><strong>Add photos of previous events</strong><small>Up to {{ config.PORTFOLIO_MAX_IMAGES }} images · JPEG, PNG or WebP · max 2 MB each</small></span>
+          </label>
+          <input class="upload-input" id="portfolio" name="portfolio" type="file" accept="image/jpeg,image/png,image/webp" multiple>
+          <div class="upload-previews" aria-live="polite"></div>
+          <div class="upload-error text-danger small" role="alert"></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="apply-section" aria-labelledby="sec-pacra">
+    <h2 id="sec-pacra"><i class="bi bi-file-earmark-check" aria-hidden="true"></i> PACRA documentation</h2>
+    <p class="apply-note">An administrator checks your PACRA details before approving your profile. Entering a registration number or code does not approve your application automatically.</p>
+    <div class="upload-box" data-image-picker data-max-files="1" data-max-bytes="5242880" data-types="application/pdf,image/jpeg,image/png,image/webp">
+      <label class="form-label" for="pacra_document">PACRA certificate or supporting document <span class="text-muted fw-normal">(optional)</span></label>
+      <label class="upload-drop" for="pacra_document">
+        <i class="bi bi-file-earmark-arrow-up" aria-hidden="true"></i>
+        <span><strong>Choose a document</strong><small>PDF, JPEG, PNG or WebP · max 5 MB · visible only to administrators</small></span>
+      </label>
+      <input class="upload-input" id="pacra_document" name="pacra_document" type="file" accept="application/pdf,image/jpeg,image/png,image/webp">
+      <div class="upload-previews" aria-live="polite"></div>
+      <div class="upload-error text-danger small" role="alert"></div>
+    </div>
+  </section>
+
+  <section class="apply-section" aria-labelledby="sec-account">
+    <h2 id="sec-account"><i class="bi bi-shield-lock" aria-hidden="true"></i> Account security</h2>
+    <div class="row">
+      <div class="col-md-6 mb-3">
+        {{ form.password.label(class="form-label") }}<span class="req" aria-hidden="true">*</span>
+        <div class="password-field">
+          {{ form.password(class="form-control", required=true, autocomplete="new-password", **{"data-password": "1"}) }}
+          <button class="password-toggle" type="button" data-password-toggle aria-label="Show password" aria-pressed="false"><i class="bi bi-eye" aria-hidden="true"></i></button>
+        </div>
+        <div class="form-text">At least 8 characters with an uppercase letter, a lowercase letter and a number.</div>
+        {% for error in form.password.errors %}<div class="text-danger small">{{ error }}</div>{% endfor %}
+      </div>
+      <div class="col-md-6 mb-3">
+        {{ form.confirm_password.label(class="form-label") }}<span class="req" aria-hidden="true">*</span>
+        <div class="password-field">
+          {{ form.confirm_password(class="form-control", required=true, autocomplete="new-password", **{"data-confirm-password": "1"}) }}
+          <button class="password-toggle" type="button" data-password-toggle aria-label="Show password" aria-pressed="false"><i class="bi bi-eye" aria-hidden="true"></i></button>
+        </div>
+        {% for error in form.confirm_password.errors %}<div class="text-danger small">{{ error }}</div>{% endfor %}
+      </div>
+    </div>
+  </section>
+
+  <div class="apply-submit">
+    <div class="form-check">{{ form.accept_terms(class="form-check-input", required=true) }}{{ form.accept_terms.label(class="form-check-label") }} <a href="{{ url_for('pages.terms') }}">Read the terms</a>{% for error in form.accept_terms.errors %}<div class="text-danger small">{{ error }}</div>{% endfor %}</div>
+    <button class="btn btn-green" type="submit"><i class="bi bi-send" aria-hidden="true"></i> {{ form.submit.label.text }}</button>
+  </div>
+  <datalist id="towns">
+    <option>Lusaka</option><option>Kitwe</option><option>Ndola</option><option>Livingstone</option><option>Kabwe</option><option>Chingola</option><option>Mufulira</option><option>Chipata</option><option>Kasama</option><option>Solwezi</option>
+  </datalist>
+</form>
+{% endblock %}

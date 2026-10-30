@@ -1,0 +1,147 @@
+{% extends "layouts/dashboard.html" %}
+{% from "partials/ui.html" import badge %}
+{% block title %}{{ user.full_name }} · EventLink Zambia{% endblock %}
+{% block page %}
+<div class="dash-head">
+  <div>
+    <p class="eyebrow mb-1"><a href="{{ url_for('admin.users') }}">Users</a></p>
+    <h1>{{ user.full_name }}</h1>
+    <p>{{ user.role|title }} · {{ badge(user.account_status) }}{% if user.id == current_user.id %} · This is your account{% endif %}</p>
+  </div>
+</div>
+
+<div class="row g-4">
+  <div class="col-lg-5">
+    <section class="panel h-100" aria-labelledby="account-heading">
+      <h2 id="account-heading" class="h5">Account</h2>
+      <dl class="detail-list">
+        <dt>Email</dt><dd>{{ user.email }}</dd>
+        <dt>Phone</dt><dd>{{ user.phone }}</dd>
+        <dt>Role</dt><dd>{{ user.role|title }}</dd>
+        <dt>Status</dt><dd>{{ badge(user.account_status) }}</dd>
+        <dt>Registered</dt><dd>{{ user.created_at|localdt }}</dd>
+        <dt>Last updated</dt><dd>{{ user.updated_at|localdt }}</dd>
+      </dl>
+      {% if user.id == current_user.id %}
+      <p class="panel-note mb-0">You cannot suspend your own account. Edit your details from <a href="{{ url_for('admin.profile') }}">My profile</a>.</p>
+      {% elif user.account_status == 'active' %}
+      <form method="post" action="{{ url_for('admin.user_suspend', user_id=user.id) }}" data-confirm="Suspend {{ user.full_name }}? They will not be able to sign in.">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <input type="hidden" name="return_to" value="detail">
+        <label class="form-label" for="reason">Suspension reason</label>
+        <textarea class="form-control mb-2" id="reason" name="reason" rows="2" required minlength="5" maxlength="500"></textarea>
+        <button class="btn btn-outline-danger" type="submit"><i class="bi bi-slash-circle" aria-hidden="true"></i> Suspend account</button>
+      </form>
+      {% else %}
+      <form method="post" action="{{ url_for('admin.user_reactivate', user_id=user.id) }}" data-confirm="Reactivate {{ user.full_name }}?">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <input type="hidden" name="return_to" value="detail">
+        <label class="form-label" for="reason">Reactivation reason</label>
+        <textarea class="form-control mb-2" id="reason" name="reason" rows="2" required minlength="5" maxlength="500"></textarea>
+        <button class="btn btn-green" type="submit"><i class="bi bi-arrow-counterclockwise" aria-hidden="true"></i> Reactivate account</button>
+      </form>
+      {% endif %}
+    </section>
+  </div>
+  <div class="col-lg-7">
+    <div class="stat-grid stat-grid-2">
+      <div class="stat-card"><strong>{{ summary.orders }}</strong><span>Ticket orders</span></div>
+      <div class="stat-card"><strong>{{ summary.tickets }}</strong><span>Tickets issued</span><small>{{ summary.valid_tickets }} still valid</small></div>
+      <div class="stat-card"><strong>{{ summary.spend_live|zmw }}</strong><span>Verified live payments</span>{% if summary.spend_simulated %}<small>{{ summary.spend_simulated|zmw }} in simulation payments</small>{% endif %}</div>
+      {% if user.role == 'planner' %}
+      <div class="stat-card"><strong>{{ summary.events }}</strong><span>Events created</span><small>{{ summary.received }} booking request{{ '' if summary.received == 1 else 's' }} received</small></div>
+      {% else %}
+      <div class="stat-card"><strong>{{ summary.bookings }}</strong><span>Planner bookings made</span></div>
+      {% endif %}
+    </div>
+    {% if profile %}
+    <section class="panel mt-3" aria-labelledby="planner-heading">
+      <div class="panel-head">
+        <h2 id="planner-heading" class="h5">Planner profile</h2>
+        <a href="{{ url_for('admin.planner_detail', profile_id=profile.id) }}">Open verification page</a>
+      </div>
+      <p class="mb-1"><strong>{{ profile.business_name }}</strong> · {{ profile.location }}</p>
+      <p class="mb-1">Verification: {{ badge(profile.approval_status) }}</p>
+      <p class="panel-note mb-0">Profile {{ profile.completion_percent }}% complete{% if profile.rejection_reason %} · Last reason: {{ profile.rejection_reason }}{% endif %}</p>
+    </section>
+    {% endif %}
+  </div>
+</div>
+
+<div class="row g-4 dash-section">
+  <div class="col-lg-6">
+    <section class="panel h-100" aria-labelledby="orders-heading">
+      <h2 id="orders-heading" class="h5">Recent orders</h2>
+      {% if orders %}
+      <ul class="list-rows">
+        {% for order in orders %}
+        <li>
+          <div class="row-main">
+            <a href="{{ url_for('admin.order_detail', order_reference=order.order_reference) }}">{{ order.order_reference }}</a>
+            <span>{{ order.event.title }} · {{ order.created_at|localdt }}</span>
+          </div>
+          <div class="text-end">{{ order.total_amount|zmw }}<br>{{ badge(order.order_status) }}</div>
+        </li>
+        {% endfor %}
+      </ul>
+      {% else %}<p class="panel-note mb-0">This account has not placed any ticket orders.</p>{% endif %}
+    </section>
+  </div>
+  <div class="col-lg-6">
+    {% if user.role == 'planner' %}
+    <section class="panel h-100" aria-labelledby="events-heading">
+      <h2 id="events-heading" class="h5">Events created</h2>
+      {% if events %}
+      <ul class="list-rows">
+        {% for event in events %}
+        <li>
+          <div class="row-main">
+            <a href="{{ url_for('admin.event_detail', event_id=event.id) }}">{{ event.title }}</a>
+            <span>{{ event.start_datetime|localdt }}</span>
+          </div>
+          {{ badge(event.approval_status) }}
+        </li>
+        {% endfor %}
+      </ul>
+      {% else %}<p class="panel-note mb-0">This planner has not created any events.</p>{% endif %}
+    </section>
+    {% else %}
+    <section class="panel h-100" aria-labelledby="bookings-heading">
+      <h2 id="bookings-heading" class="h5">Planner bookings</h2>
+      {% if bookings %}
+      <ul class="list-rows">
+        {% for booking in bookings %}
+        <li>
+          <div class="row-main">
+            <strong>{{ booking.event_type }}</strong>
+            <span>{{ booking.planner.business_name }} · {{ booking.event_date.strftime('%d %b %Y') }}</span>
+          </div>
+          {{ badge(booking.status) }}
+        </li>
+        {% endfor %}
+      </ul>
+      {% else %}<p class="panel-note mb-0">This account has not requested a planner.</p>{% endif %}
+    </section>
+    {% endif %}
+  </div>
+</div>
+
+<section class="panel dash-section" aria-labelledby="history-heading">
+  <div class="panel-head">
+    <h2 id="history-heading" class="h5">Account history</h2>
+    <a href="{{ url_for('admin.audit_logs', entity='user') }}">Full audit log</a>
+  </div>
+  {% if history %}
+  <ul class="list-rows">
+    {% for item in history %}
+    <li>
+      <div class="row-main">
+        <strong>{{ item.action|replace('_', ' ')|capitalize }}</strong>
+        <span>{{ item.actor.full_name if item.actor else 'System' }} · {{ item.created_at|localdt }}{% if item.reason %} · {{ item.reason }}{% endif %}</span>
+      </div>
+    </li>
+    {% endfor %}
+  </ul>
+  {% else %}<p class="panel-note mb-0">No administrator actions have been recorded for this account.</p>{% endif %}
+</section>
+{% endblock %}

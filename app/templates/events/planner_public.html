@@ -1,0 +1,92 @@
+{% extends "base.html" %}
+{% from "partials/ui.html" import badge %}
+{% from "partials/planner_media.html" import planner_avatar, portfolio_gallery %}
+{% block title %}{{ profile.business_name }} · EventLink Zambia{% endblock %}
+{% block content %}
+{% if profile.approval_status != 'approved' %}
+<div class="alert alert-warning d-flex align-items-center gap-2" role="status">
+  <i class="bi bi-eye" aria-hidden="true"></i>
+  <span>Preview only. This profile is {{ badge(profile.approval_status) }} and is not visible to the public.</span>
+</div>
+{% endif %}
+
+<section class="planner-hero-public" aria-labelledby="planner-name">
+  <div class="planner-hero-band" aria-hidden="true"></div>
+  <div class="planner-hero-content">
+    {{ planner_avatar(profile, "planner-avatar-lg") }}
+    <div class="planner-hero-info">
+      <h1 id="planner-name">{{ profile.business_name }}</h1>
+      <ul class="planner-hero-meta">
+        <li><i class="bi bi-geo-alt" aria-hidden="true"></i> {{ profile.location }}</li>
+        {% if profile.category_label %}<li><i class="bi bi-grid" aria-hidden="true"></i> {{ profile.category_label }}</li>{% endif %}
+        <li><i class="bi bi-patch-check" aria-hidden="true"></i> {{ completed }} completed booking{{ '' if completed == 1 else 's' }}</li>
+      </ul>
+      {% if profile.biography %}<p class="planner-hero-intro">{{ profile.biography|truncate(200) }}</p>{% endif %}
+    </div>
+    <div class="planner-hero-actions">
+      {% if current_user and current_user.role == 'client' and profile.approval_status == 'approved' %}
+        <a class="btn btn-green" href="{{ url_for('client.booking_new', planner_id=profile.id) }}"><i class="bi bi-calendar-plus" aria-hidden="true"></i> Request this planner</a>
+      {% elif not current_user %}
+        <a class="btn btn-green" href="{{ url_for('auth.login', next=request.path) }}"><i class="bi bi-box-arrow-in-right" aria-hidden="true"></i> Log in to request a booking</a>
+      {% endif %}
+      {% if profile.portfolio_images %}<a class="btn btn-outline-secondary" href="#portfolio"><i class="bi bi-images" aria-hidden="true"></i> View portfolio</a>{% endif %}
+    </div>
+  </div>
+</section>
+
+<div class="row g-4">
+  <div class="col-lg-8">
+    <section class="panel planner-section" aria-labelledby="about-heading">
+      <h2 id="about-heading"><i class="bi bi-building" aria-hidden="true"></i> About the business</h2>
+      {% if profile.biography %}<p>{{ profile.biography|nl2br }}</p>{% endif %}
+      {% if profile.experience %}
+      <h3 class="h6 mt-3">Experience</h3>
+      <p>{{ profile.experience|nl2br }}</p>
+      {% endif %}
+      {% if profile.speciality_list %}
+      <h3 class="h6 mt-3">Specialities</h3>
+      <ul class="speciality-tags">{% for item in profile.speciality_list %}<li>{{ item }}</li>{% endfor %}</ul>
+      {% endif %}
+    </section>
+
+    <section class="panel planner-section" aria-labelledby="services-heading">
+      <h2 id="services-heading"><i class="bi bi-briefcase" aria-hidden="true"></i> Services offered</h2>
+      {% if profile.services %}
+      <ul class="planner-services">
+        {% for service in profile.services %}
+        <li>
+          <strong><i class="bi bi-check2-circle" aria-hidden="true"></i> {{ service.service_name }}</strong>
+          {% if service.description and service.description != service.service_name %}<p>{{ service.description }}</p>{% endif %}
+          {% if service.pricing_type == 'quotation' %}<span class="service-price">Pricing by quotation</span>
+          {% elif service.starting_price is not none %}<span class="service-price">{{ 'Fixed' if service.pricing_type == 'fixed' else 'From' }} {{ service.starting_price|zmw }}</span>
+          {% endif %}
+        </li>
+        {% endfor %}
+      </ul>
+      {% else %}
+      <p class="text-muted mb-0">No services listed yet.</p>
+      {% endif %}
+    </section>
+  </div>
+
+  <div class="col-lg-4">
+    <aside class="panel planner-section" aria-labelledby="details-heading">
+      <h2 id="details-heading"><i class="bi bi-info-circle" aria-hidden="true"></i> Business details</h2>
+      <dl class="planner-facts">
+        <div><i class="bi bi-geo-alt" aria-hidden="true"></i><span><dt>Location</dt><dd>{{ profile.location }}</dd></span></div>
+        {% if profile.business_address %}<div><i class="bi bi-signpost" aria-hidden="true"></i><span><dt>Business address</dt><dd>{{ profile.business_address }}</dd></span></div>{% endif %}
+        {% if profile.category_label %}<div><i class="bi bi-grid" aria-hidden="true"></i><span><dt>Category</dt><dd>{{ profile.category_label }}</dd></span></div>{% endif %}
+        {% if profile.availability %}<div><i class="bi bi-calendar-week" aria-hidden="true"></i><span><dt>Availability</dt><dd>{{ profile.availability|nl2br }}</dd></span></div>{% endif %}
+        <div><i class="bi bi-chat-dots" aria-hidden="true"></i><span><dt>How to get in touch</dt><dd>Send a booking request through EventLink and the planner will reply with a quotation.</dd></span></div>
+      </dl>
+    </aside>
+  </div>
+</div>
+
+<section class="panel planner-section" id="portfolio" aria-labelledby="portfolio-heading">
+  <h2 id="portfolio-heading"><i class="bi bi-images" aria-hidden="true"></i> Portfolio</h2>
+  {{ portfolio_gallery(profile, "public-portfolio", "No portfolio images yet", "This planner has not uploaded photos of previous events yet.") }}
+</section>
+
+{% include "partials/lightbox.html" %}
+{% endblock %}

@@ -1,0 +1,74 @@
+{% extends "base.html" %}
+{% from "partials/ui.html" import empty, section_head %}
+{% from "partials/planner_media.html" import planner_card %}
+{% block title %}EventLink Zambia · Discover events{% endblock %}
+{% block content %}
+<section class="hero">
+  <p class="eyebrow"><i class="bi bi-geo-alt-fill" aria-hidden="true"></i> Zambia</p>
+  <h1>Discover events. Book planners. Get your tickets.</h1>
+  <p class="lead">Find concerts, festivals, graduations, and celebrations across Zambia, or book a planner for your own occasion.</p>
+  <form class="hero-search" method="get" action="{{ url_for('events.listing') }}" role="search">
+    <label class="visually-hidden" for="home-q">Search events</label>
+    <input class="form-control" id="home-q" name="q" type="search" placeholder="Search by event name">
+    <button class="btn btn-copper" type="submit">Search</button>
+  </form>
+</section>
+
+<section class="home-section">
+  {{ section_head("Coming up", "Featured events", "Hand-picked concerts, festivals, and celebrations happening soon.", url_for('events.listing'), "Browse all events") }}
+  {% if featured %}
+  <div class="event-grid">
+    {% for event in featured %}
+      {% include "partials/event_card.html" %}
+    {% endfor %}
+  </div>
+  {% else %}
+  {{ empty("calendar-x", "No upcoming events", "No upcoming events at the moment. Please check back soon.", url_for('events.listing'), "Explore the event catalogue") }}
+  {% endif %}
+</section>
+
+{% set category_icons = {
+  "Concerts": "music-note-beamed",
+  "Music festivals": "speaker",
+  "Bashes and parties": "balloon",
+  "Weddings": "heart",
+  "Birthdays": "gift",
+  "Graduations": "mortarboard",
+  "Corporate events": "briefcase",
+  "Conferences": "mic",
+  "Religious events": "book",
+} %}
+<section class="home-section">
+  {{ section_head("Browse", "Event categories", "Jump straight to the kind of occasion you are looking for.") }}
+  <div class="category-row">
+    {% for category in categories %}
+      <a class="category-chip" href="{{ url_for('events.listing', category=category.id) }}">
+        <span class="chip-icon"><i class="bi bi-{{ category_icons.get(category.name, 'stars') }}" aria-hidden="true"></i></span>
+        {{ category.name }}
+      </a>
+    {% endfor %}
+  </div>
+</section>
+
+<section class="home-section">
+  {{ section_head("Professionals", "Popular event planners", "Approved planners with a record of completed bookings.", url_for('events.planners'), "View planners") }}
+  {% if planners %}
+  <div class="planner-grid">
+    {% for profile, completed in planners %}
+      {{ planner_card(profile, completed) }}
+    {% endfor %}
+  </div>
+  {% else %}
+  {{ empty("people", "No approved planners yet", "Planner profiles appear here after an administrator approves them.", url_for('auth.planner_register'), "Apply as a planner") }}
+  {% endif %}
+</section>
+
+<section class="home-section">
+  {{ section_head("Simple", "How it works", "Three steps from discovering an event to holding your ticket.") }}
+  <div class="steps">
+    <article class="step"><span class="step-number">01</span><span class="step-icon"><i class="bi bi-search"></i></span><h3>Discover</h3><p>Search published events by city, date, category, or price.</p></article>
+    <article class="step"><span class="step-number">02</span><span class="step-icon"><i class="bi bi-ticket-perforated"></i></span><h3>Get tickets</h3><p>Choose a ticket category. Tickets are issued only after payment is verified.</p></article>
+    <article class="step"><span class="step-number">03</span><span class="step-icon"><i class="bi bi-briefcase"></i></span><h3>Book a planner</h3><p>Send a request, review a quotation, and follow the booking from start to finish.</p></article>
+  </div>
+</section>
+{% endblock %}

@@ -1,0 +1,81 @@
+{% extends "base.html" %}
+{% from "partials/ui.html" import poster, badge %}
+{% from "partials/artists.html" import artist_cards %}
+{% block title %}{{ event.title }} · EventLink Zambia{% endblock %}
+{% block content %}
+<div class="row g-4">
+  <div class="col-lg-7">
+    <div class="panel p-0">
+      {{ poster(event) }}
+      <div class="p-3">
+        <p class="eyebrow">{{ event.category.name }}</p>
+        <h1>{{ event.title }}</h1>
+        <p>{{ badge(event.publication_status) }} {{ badge(event.approval_status) }}</p>
+        <p class="meta"><i class="bi bi-calendar-event"></i> {{ event.start_datetime|localdt }} – {{ event.end_datetime|localdt }}</p>
+        <p class="meta"><i class="bi bi-geo-alt"></i> {{ event.venue }}, {{ event.location }}</p>
+        <p class="meta"><i class="bi bi-person"></i> {{ event.organiser.full_name }}</p>
+        <div>{{ event.description|nl2br }}</div>
+        {% if event.publication_status == 'cancelled' %}
+          <div class="alert alert-danger mt-3">This event has been cancelled. {% if event.cancellation_reason %}{{ event.cancellation_reason }}{% endif %}</div>
+        {% endif %}
+      </div>
+    </div>
+    {{ artist_cards(event.artists) }}
+  </div>
+  <div class="col-lg-5">
+    <div class="panel">
+      <h2>Tickets</h2>
+      {% if not event.ticket_types %}
+        <p>No ticket categories have been added.</p>
+      {% endif %}
+      {% if current_user and current_user.role == 'client' and event.is_public %}
+      <form method="post" action="{{ url_for('events.purchase', event_id=event.id) }}">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <input type="hidden" name="checkout_token" value="{{ checkout_token }}">
+        {% set ns = namespace(first=None) %}
+        {% for ticket in event.ticket_types %}
+          {% set state = states.get(ticket.id) %}
+          {% set allowed = [allowances.get(ticket.id, ticket.max_per_order), ticket.remaining]|min %}
+          {% set buyable = state == 'available' and allowed > 0 %}
+          {% set is_first = buyable and ns.first is none %}
+          {% if is_first %}{% set ns.first = allowed %}{% endif %}
+          <label class="ticket-option">
+            <input type="radio" name="ticket_type_id" value="{{ ticket.id }}" data-max="{{ allowed }}" {% if not buyable %}disabled{% endif %} {% if is_first %}checked{% endif %}>
+            <strong>{{ ticket.name }}</strong> · {{ ticket.price|zmw }}
+            <span class="d-block meta">{{ ticket.remaining }} remaining · max {{ ticket.max_per_order }} per customer</span>
+            {% if ticket.description %}<span class="d-block">{{ ticket.description }}</span>{% endif %}
+            {% set held = ticket.max_per_order - allowances.get(ticket.id, ticket.max_per_order) %}
+            {% if state == 'available' and held > 0 %}
+              <span class="d-block meta ticket-limit">{% if allowed > 0 %}You already have {{ held }}, so you can buy {{ allowed }} more.{% else %}You have reached the limit of {{ ticket.max_per_order }} for this ticket.{% endif %}</span>
+            {% endif %}
+            <span class="status status-{{ state }}">{{ state|replace('_', ' ')|title }}</span>
+          </label>
+        {% endfor %}
+        {% if ns.first is not none %}
+        <div class="mb-3">
+          <label class="form-label" for="quantity">Quantity</label>
+          <input class="form-control" id="quantity" name="quantity" type="number" min="1" max="{{ ns.first }}" value="1" required>
+          <div class="form-text">Each customer can buy up to the limit shown for the ticket type.</div>
+        </div>
+        <button class="btn btn-green" type="submit">Continue to checkout</button>
+        {% else %}
+        <p class="meta mb-0">No tickets are available for you to buy for this event right now.</p>
+        {% endif %}
+      </form>
+      {% elif not current_user %}
+        <p>Log in as a client to buy tickets.</p>
+        <a class="btn btn-green" href="{{ url_for('auth.login', next=request.path) }}">Log in</a>
+      {% else %}
+        <p>Ticket sales are shown for information. Only client accounts can purchase.</p>
+        {% for ticket in event.ticket_types %}
+          <div class="ticket-option">
+            <strong>{{ ticket.name }}</strong> · {{ ticket.price|zmw }}
+            <span class="status status-{{ states.get(ticket.id) }}">{{ states.get(ticket.id)|replace('_', ' ')|title }}</span>
+          </div>
+        {% endfor %}
+      {% endif %}
+    </div>
+  </div>
+</div>
+{% endblock %}
+{% block extra_js %}<script src="{{ url_for('static', filename='js/events.js') }}"></script>{% endblock %}

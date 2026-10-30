@@ -1,0 +1,250 @@
+{% extends "layouts/dashboard.html" %}
+{% from "partials/ui.html" import badge, empty, csrf %}
+{% block title %}Admin dashboard · EventLink Zambia{% endblock %}
+{% block page %}
+{% set greeting = "Good morning" if today.hour < 12 else ("Good afternoon" if today.hour < 17 else "Good evening") %}
+<section class="dash-welcome">
+  <div>
+    <p class="eyebrow">Admin dashboard · {{ today.strftime('%A, %d %B %Y') }}</p>
+    <h1>{{ greeting }}, {{ current_user.full_name }}</h1>
+    <p>{% if stats.tasks %}You have {{ stats.tasks }} item{{ "" if stats.tasks == 1 else "s" }} waiting for review.{% else %}Nothing is waiting for review right now.{% endif %}</p>
+  </div>
+  <div class="dash-welcome-actions">
+    <a class="btn btn-copper" href="{{ url_for('admin.reports') }}"><i class="bi bi-bar-chart-line" aria-hidden="true"></i> Open reports</a>
+  </div>
+</section>
+
+{% if stats.tasks %}
+<nav class="task-chips" aria-label="Pending tasks">
+  {% if stats.planners_pending %}<a href="{{ url_for('admin.planners', status='pending') }}"><i class="bi bi-person-badge" aria-hidden="true"></i> {{ stats.planners_pending }} planner verification{{ "" if stats.planners_pending == 1 else "s" }}</a>{% endif %}
+  {% if stats.events_pending %}<a href="{{ url_for('admin.events', status='pending') }}"><i class="bi bi-calendar-check" aria-hidden="true"></i> {{ stats.events_pending }} event{{ "" if stats.events_pending == 1 else "s" }} to approve</a>{% endif %}
+  {% if stats.refunds_requested %}<a href="{{ url_for('admin.payments') }}#refunds"><i class="bi bi-arrow-counterclockwise" aria-hidden="true"></i> {{ stats.refunds_requested }} refund request{{ "" if stats.refunds_requested == 1 else "s" }}</a>{% endif %}
+  {% if stats.new_messages %}<a href="{{ url_for('admin.messages', status='new') }}"><i class="bi bi-envelope" aria-hidden="true"></i> {{ stats.new_messages }} new message{{ "" if stats.new_messages == 1 else "s" }}</a>{% endif %}
+</nav>
+{% endif %}
+
+<div class="stat-grid">
+  <a class="stat-card stat-card-link" href="{{ url_for('admin.users', role='client') }}">
+    <div class="stat-icon"><i class="bi bi-people" aria-hidden="true"></i></div>
+    <strong>{{ stats.clients }}</strong>
+    <span>Registered clients</span>
+    <small>Client accounts only</small>
+  </a>
+  <a class="stat-card stat-card-link" href="{{ url_for('admin.planners') }}">
+    <div class="stat-icon"><i class="bi bi-person-workspace" aria-hidden="true"></i></div>
+    <strong>{{ stats.planners }}</strong>
+    <span>Event planners</span>
+    <small>{{ stats.planners_verified }} verified · {{ stats.planners_pending }} pending{% if stats.planners_other %} · {{ stats.planners_other }} rejected or suspended{% endif %}</small>
+  </a>
+  <a class="stat-card stat-card-link" href="{{ url_for('admin.events', status='pending') }}">
+    <div class="stat-icon copper"><i class="bi bi-calendar-check" aria-hidden="true"></i></div>
+    <strong>{{ stats.events_pending }}</strong>
+    <span>Events awaiting approval</span>
+    <small>{{ stats.events_upcoming }} approved upcoming</small>
+  </a>
+  <a class="stat-card stat-card-link" href="{{ url_for('admin.ticket_sales') }}">
+    <div class="stat-icon copper"><i class="bi bi-ticket-detailed" aria-hidden="true"></i></div>
+    <strong>{{ stats.tickets_sold }}</strong>
+    <span>Tickets sold</span>
+    <small>Valid or redeemed, from {{ stats.orders_paid }} paid order{{ "" if stats.orders_paid == 1 else "s" }}</small>
+  </a>
+</div>
+
+<div class="metric-strip">
+  <a href="{{ url_for('admin.planners', status='pending') }}"><span>Pending planner verifications</span><strong>{{ stats.planners_pending }}</strong></a>
+  <a href="{{ url_for('admin.payments', status='successful') }}"><span>Verified payments (live)</span><strong>{{ stats.revenue_live|zmw }}</strong></a>
+  <a href="{{ url_for('admin.payments', status='successful') }}"><span>Verified payments (simulation)</span><strong>{{ stats.revenue_simulated|zmw }}</strong></a>
+  <a href="{{ url_for('admin.payments', status='pending') }}"><span>Payments awaiting verification</span><strong>{{ stats.payments_pending }}</strong></a>
+  <a href="{{ url_for('admin.events', status='approved') }}"><span>Upcoming approved events</span><strong>{{ stats.events_upcoming }}</strong></a>
+</div>
+
+<div class="row g-4 dash-section">
+  <div class="col-xl-6">
+    <section class="panel panel-focus h-100" aria-labelledby="pending-planners">
+      <div class="panel-head">
+        <h2 id="pending-planners">Planner verifications</h2>
+        <a href="{{ url_for('admin.planners', status='pending') }}">All pending</a>
+      </div>
+      {% if pending_planners %}
+      <ul class="list-rows">
+        {% for profile in pending_planners %}
+        <li>
+          <div class="row-main">
+            <a href="{{ url_for('admin.planner_detail', profile_id=profile.id) }}">{{ profile.business_name }}</a>
+            <span>{{ profile.user.full_name }} · {{ profile.location }} · submitted {{ profile.created_at|localdate }}</span>
+          </div>
+          <div class="request-actions">
+            {{ badge(profile.approval_status) }}
+            <a class="btn btn-sm btn-outline-success" href="{{ url_for('admin.planner_detail', profile_id=profile.id) }}">Review</a>
+            <form method="post" action="{{ url_for('admin.planner_approve', profile_id=profile.id) }}" data-confirm="Approve {{ profile.business_name }} as a verified planner?">
+              {{ csrf() }}
+              <button class="btn btn-sm btn-green" type="submit">Approve</button>
+            </form>
+          </div>
+        </li>
+        {% endfor %}
+      </ul>
+      <p class="panel-note mb-0">To reject an application, open Review and give a reason.</p>
+      {% else %}
+        {{ empty("person-check", "No planners waiting", "New planner applications will appear here.") }}
+      {% endif %}
+    </section>
+  </div>
+  <div class="col-xl-6">
+    <section class="panel panel-focus h-100" aria-labelledby="pending-events">
+      <div class="panel-head">
+        <h2 id="pending-events">Event approvals</h2>
+        <a href="{{ url_for('admin.events', status='pending') }}">All pending</a>
+      </div>
+      {% if pending_events %}
+      <ul class="list-rows">
+        {% for event in pending_events %}
+        <li>
+          <div class="row-main">
+            <a href="{{ url_for('admin.event_detail', event_id=event.id) }}">{{ event.title }}</a>
+            <span>{{ event.organiser.full_name }} · {{ event.category.name }} · {{ event.start_datetime|localdate }} · updated {{ event.updated_at|localdate }}</span>
+          </div>
+          <div class="request-actions">
+            {{ badge(event.approval_status) }}
+            <a class="btn btn-sm btn-outline-success" href="{{ url_for('admin.event_detail', event_id=event.id) }}">Review</a>
+          </div>
+        </li>
+        {% endfor %}
+      </ul>
+      <p class="panel-note mb-0">Open Review to check the poster, schedule, and ticket categories before approving or rejecting.</p>
+      {% else %}
+        {{ empty("calendar-check", "No events waiting", "Events submitted by planners will appear here.") }}
+      {% endif %}
+    </section>
+  </div>
+</div>
+
+<section class="panel dash-section" aria-labelledby="sales-heading">
+  <div class="panel-head">
+    <h2 id="sales-heading">Sales and payments</h2>
+    <a href="{{ url_for('admin.reports') }}">Detailed reports</a>
+  </div>
+  <dl class="sales-summary">
+    <div><dt>Orders placed</dt><dd>{{ stats.orders }}</dd></div>
+    <div><dt>Paid orders</dt><dd>{{ stats.orders_paid }}</dd></div>
+    <div><dt>Tickets sold</dt><dd>{{ stats.tickets_sold }}</dd></div>
+    <div><dt><i class="bi bi-check-circle-fill text-success" aria-hidden="true"></i> Successful payments</dt><dd>{{ stats.payments_successful }}</dd></div>
+    <div><dt><i class="bi bi-hourglass-split" aria-hidden="true"></i> Pending payments</dt><dd>{{ stats.payments_pending }}</dd></div>
+    <div><dt><i class="bi bi-x-circle-fill text-danger" aria-hidden="true"></i> Failed payments</dt><dd>{{ stats.payments_failed }}</dd></div>
+  </dl>
+  <div class="chart-grid">
+    <figure class="chart-tile">
+      <figcaption>Tickets sold per month</figcaption>
+      <div class="chart-box"><canvas id="admin-monthly-chart" role="img" aria-label="Bar chart of tickets sold per month for the last 6 months"></canvas></div>
+      <div id="admin-monthly-chart-empty" hidden>{{ empty("bar-chart", "No ticket sales yet", "Monthly sales appear after payments are verified.") }}</div>
+    </figure>
+    <figure class="chart-tile">
+      <figcaption>Payment status breakdown</figcaption>
+      <div class="chart-box"><canvas id="admin-payment-chart" role="img" aria-label="Doughnut chart of payments by status"></canvas></div>
+      <div id="admin-payment-chart-empty" hidden>{{ empty("credit-card", "No payments yet", "Payment attempts appear here.") }}</div>
+    </figure>
+    <figure class="chart-tile">
+      <figcaption>Tickets by event</figcaption>
+      <div class="chart-box"><canvas id="admin-event-chart" role="img" aria-label="Bar chart of tickets sold by event"></canvas></div>
+      <div id="admin-event-chart-empty" hidden>{{ empty("ticket-detailed", "No tickets sold yet", "Best-selling events appear here.") }}</div>
+    </figure>
+    <figure class="chart-tile">
+      <figcaption>Tickets by event category</figcaption>
+      <div class="chart-box"><canvas id="admin-category-chart" role="img" aria-label="Bar chart of tickets sold by event category"></canvas></div>
+      <div id="admin-category-chart-empty" hidden>{{ empty("tags", "No category sales yet", "Sales by category appear here.") }}</div>
+    </figure>
+  </div>
+</section>
+
+<section class="panel dash-section" aria-labelledby="performance-heading">
+  <div class="panel-head">
+    <h2 id="performance-heading">Upcoming event performance</h2>
+    <a href="{{ url_for('admin.ticket_sales') }}">Ticket sales</a>
+  </div>
+  {% if performance %}
+  <div class="table-responsive">
+    <table class="table align-middle mb-0">
+      <thead><tr><th>Event</th><th>Date</th><th>Sold</th><th>Sell-through</th><th>Sales</th><th></th></tr></thead>
+      <tbody>
+      {% for row in performance %}
+        <tr>
+          <td><a href="{{ url_for('admin.event_detail', event_id=row.event.id) }}"><strong>{{ row.event.title }}</strong></a><br><small class="text-muted">{{ row.event.venue }}{% if row.event.location %}, {{ row.event.location }}{% endif %}</small></td>
+          <td>{{ row.event.start_datetime|localdate }}</td>
+          <td>{{ row.sold }} / {{ row.capacity }}</td>
+          <td class="sell-through">
+            <div class="progress progress-thin" role="progressbar" aria-label="{{ row.percent }}% sold" aria-valuenow="{{ row.percent }}" aria-valuemin="0" aria-valuemax="100">
+              <div class="progress-bar" style="width: {{ row.percent }}%"></div>
+            </div>
+            <small>{{ row.percent }}%</small>
+          </td>
+          <td>{{ badge(row.availability) }}</td>
+          <td>{% if row.tag %}{{ badge(row.tag) }}{% endif %}</td>
+        </tr>
+      {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  <p class="panel-note mt-2 mb-0">"Selling fast" means at least 75% of tickets are sold. "Low sales" means sales have been open for 7 days or more and under 10% of tickets are sold.</p>
+  {% else %}
+    {{ empty("calendar-event", "No upcoming approved events", "Approved, published events will be tracked here.") }}
+  {% endif %}
+</section>
+
+<section class="panel dash-section">
+  <div class="panel-head">
+    <h2>Recent system activity</h2>
+    <a href="{{ url_for('admin.audit_logs') }}">Full audit log</a>
+  </div>
+  {% if activity %}
+  <ol class="activity-feed">
+    {% for row in activity %}
+    {% set item = row.item %}
+    <li class="activity-item">
+      {% if row.kind == "registration" %}
+        <span class="activity-icon"><i class="bi bi-person-plus" aria-hidden="true"></i></span>
+        <div class="activity-text">
+          <a href="{{ url_for('admin.users', q=item.email) }}">New {{ item.role }} registered</a>
+          <span>{{ item.full_name }}</span>
+        </div>
+        {{ badge(item.account_status) }}
+      {% else %}
+        {% set entity_links = {
+          "event": url_for('admin.event_detail', event_id=item.entity_id) if item.entity_id else None,
+          "planner_profile": url_for('admin.planner_detail', profile_id=item.entity_id) if item.entity_id else None,
+          "payment": url_for('admin.payments'),
+          "refund": url_for('admin.payments'),
+          "user": url_for('admin.users'),
+          "contact_message": url_for('admin.messages'),
+          "event_category": url_for('admin.settings'),
+        } %}
+        {% set link = entity_links.get(item.entity_type) %}
+        <span class="activity-icon copper"><i class="bi bi-shield-check" aria-hidden="true"></i></span>
+        <div class="activity-text">
+          {% if link %}<a href="{{ link }}">{{ item.action|replace('_', ' ')|capitalize }}</a>{% else %}<strong>{{ item.action|replace('_', ' ')|capitalize }}</strong>{% endif %}
+          <span>{{ "by " ~ item.actor.full_name if item.actor else "by the system" }}{% if item.reason %} · {{ item.reason|truncate(90) }}{% endif %}</span>
+        </div>
+      {% endif %}
+      <time class="activity-time">{{ row.when|localdt }}</time>
+    </li>
+    {% endfor %}
+  </ol>
+  {% else %}
+    {{ empty("clock-history", "No activity yet", "Registrations, approvals, and payment changes will appear here.") }}
+  {% endif %}
+</section>
+
+<div class="quick-actions">
+  <a class="quick-action" href="{{ url_for('admin.users') }}"><i class="bi bi-people" aria-hidden="true"></i>Manage users</a>
+  <a class="quick-action" href="{{ url_for('admin.planners', status='pending') }}"><i class="bi bi-patch-check" aria-hidden="true"></i>Verify planners</a>
+  <a class="quick-action" href="{{ url_for('admin.events', status='pending') }}"><i class="bi bi-calendar-check" aria-hidden="true"></i>Approve events</a>
+  <a class="quick-action" href="{{ url_for('admin.payments') }}"><i class="bi bi-credit-card" aria-hidden="true"></i>Payment records</a>
+  <a class="quick-action" href="{{ url_for('admin.messages', status='new') }}"><i class="bi bi-envelope-open" aria-hidden="true"></i>Read messages</a>
+</div>
+
+<script id="dash-charts" type="application/json">{{ charts|tojson }}</script>
+{% endblock %}
+
+{% block extra_js %}
+<script src="{{ url_for('static', filename='vendor/chartjs/chart.umd.min.js') }}"></script>
+<script src="{{ url_for('static', filename='js/dashboard_charts.js') }}"></script>
+{% endblock %}

@@ -1,0 +1,23 @@
+{% extends "layouts/dashboard.html" %}
+{% from "partials/ui.html" import badge %}
+{% block title %}Bookings · EventLink Zambia{% endblock %}
+{% block page %}
+<h1>Planner bookings</h1>
+<div class="table-responsive">
+  <table class="table">
+    <thead><tr><th>Client</th><th>Planner</th><th>Type</th><th>Date</th><th>Budget</th><th>Status</th></tr></thead>
+    <tbody>
+      {% for booking in bookings %}
+      <tr>
+        <td>{{ booking.client.full_name }}</td>
+        <td>{{ booking.planner.business_name }}</td>
+        <td>{{ booking.event_type }}</td>
+        <td>{{ booking.event_date.strftime('%d %b %Y') }}</td>
+        <td>{{ booking.budget|zmw }}</td>
+        <td>{{ badge(booking.status) }}</td>
+      </tr>
+      {% else %}<tr><td colspan="6">No booking requests yet.</td></tr>{% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endblock %}

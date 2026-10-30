@@ -1,0 +1,74 @@
+{% extends "layouts/dashboard.html" %}
+{% from "partials/ui.html" import badge, pager %}
+{% block title %}Payments · EventLink Zambia{% endblock %}
+{% block page %}
+<h1>Payments</h1>
+<p>Payments change status only through verified provider notifications. Unverified payments cannot be marked successful from this screen.</p>
+<nav class="inbox-tabs" aria-label="Filter payments by status">
+  <a href="{{ url_for('admin.payments', **filters) }}"{% if not status %} aria-current="page"{% endif %}>All</a>
+  {% for value in ['pending', 'successful', 'failed', 'refunded'] %}
+    <a href="{{ url_for('admin.payments', status=value, **filters) }}"{% if status == value %} aria-current="page"{% endif %}>{{ value|title }} <span>{{ totals.get(value, 0)|zmw }}</span></a>
+  {% endfor %}
+</nav>
+<form class="filters" method="get">
+  {% if status %}<input type="hidden" name="status" value="{{ status }}">{% endif %}
+  <div class="row g-2">
+    <div class="col-md-8"><label class="form-label" for="q">Payment, provider, or order reference</label><input class="form-control" id="q" name="q" value="{{ term }}"></div>
+    <div class="col-md-4"><label class="form-label" for="method">Payment method</label>
+      <select class="form-select" id="method" name="method">
+        <option value="">All methods</option>
+        {% for value in methods %}<option value="{{ value }}" {% if method == value %}selected{% endif %}>{{ value|method_label }}</option>{% endfor %}
+      </select>
+    </div>
+    <div class="col-6 col-md-4"><label class="form-label" for="date_from">From</label><input class="form-control" type="date" id="date_from" name="date_from" value="{{ date_from }}"></div>
+    <div class="col-6 col-md-4"><label class="form-label" for="date_to">To</label><input class="form-control" type="date" id="date_to" name="date_to" value="{{ date_to }}"></div>
+    <div class="col-md-4 d-flex align-items-end gap-2">
+      <button class="btn btn-green" type="submit">Filter</button>
+      {% if filters %}<a class="btn btn-outline-secondary" href="{{ url_for('admin.payments', status=status or None) }}">Clear</a>{% endif %}
+    </div>
+  </div>
+</form>
+<p class="panel-note">{{ result.total }} payment{{ '' if result.total == 1 else 's' }} found. Status totals above follow the reference, method, and date filters.</p>
+<div class="table-responsive">
+  <table class="table align-middle">
+    <thead><tr><th>Reference</th><th>Order</th><th>Amount</th><th>Status</th><th>Method</th><th>Created</th><th>Verified</th><th>Provider ref</th></tr></thead>
+    <tbody>
+      {% for payment in result["items"] %}
+      <tr>
+        <td>{{ payment.payment_reference }}</td>
+        <td><a href="{{ url_for('admin.order_detail', order_reference=payment.order.order_reference) }}">{{ payment.order.order_reference }}</a></td>
+        <td>{{ payment.amount|zmw }}</td>
+        <td>{{ badge(payment.status) }}</td>
+        <td>{{ payment.payment_method|method_label }}<div class="meta">{{ 'Simulation' if payment.is_simulated else 'Live' }}</div></td>
+        <td>{{ payment.created_at|localdt }}</td>
+        <td>{{ payment.verified_at|localdt if payment.verified_at else '—' }}</td>
+        <td>{{ payment.provider_reference or '—' }}</td>
+      </tr>
+      {% else %}<tr><td colspan="8">No payments match these filters.</td></tr>{% endfor %}
+    </tbody>
+  </table>
+</div>
+{{ pager(result) }}
+<h2 id="refunds" class="mt-4">Refund requests</h2>
+{% for refund in refunds %}
+<article class="panel mb-3">
+  <p>Order {{ refund.order.order_reference }} · {{ refund.amount|zmw }} · {{ badge(refund.status) }}</p>
+  <p>{{ refund.reason }}</p>
+  {% if refund.payment.is_simulated %}<p class="meta">This payment is simulated. Recording a refund does not move real money.</p>{% endif %}
+  {% if refund.status in ['requested', 'approved'] %}
+  <form method="post" action="{{ url_for('admin.refund_update', refund_id=refund.id) }}">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <div class="mb-2"><label class="form-label" for="note-{{ refund.id }}">Note</label><textarea class="form-control" id="note-{{ refund.id }}" name="note" required minlength="5"></textarea></div>
+    <label class="form-check"><input class="form-check-input" type="checkbox" name="confirm_external" value="yes"> I confirm any completed refund was handled outside EventLink.</label>
+    <div class="mt-2">
+      <button class="btn btn-outline-secondary btn-sm" name="decision" value="approved" type="submit">Approve request</button>
+      <button class="btn btn-outline-danger btn-sm" name="decision" value="rejected" type="submit">Reject</button>
+      <button class="btn btn-green btn-sm" name="decision" value="completed" type="submit">Record external completion</button>
+    </div>
+  </form>
+  {% elif refund.confirmation_note %}
+    <p>{{ refund.confirmation_note }}</p>
+  {% endif %}
+</article>
+{% else %}<p>No refund requests.</p>{% endfor %}
+{% endblock %}

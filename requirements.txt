@@ -1,0 +1,13 @@
+Flask>=3.0.0,<4
+Flask-SQLAlchemy>=3.1.1,<4
+Flask-WTF>=1.2.1,<2
+WTForms>=3.1.0,<4
+email-validator>=2.0.0
+Werkzeug>=3.0.0,<4
+qrcode>=7.4.2
+Pillow>=10.0.0
+python-dotenv>=1.0.0
+tzdata>=2024.1
+openpyxl>=3.1
+fpdf2>=2.7
+pytest>=8.0.0

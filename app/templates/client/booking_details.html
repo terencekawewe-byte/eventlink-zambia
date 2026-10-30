@@ -1,0 +1,45 @@
+{% extends "layouts/dashboard.html" %}
+{% from "partials/ui.html" import badge %}
+{% block title %}Booking {{ booking.id }} · EventLink Zambia{% endblock %}
+{% block page %}
+<div class="panel">
+  <p class="eyebrow">{{ booking.planner.business_name }}</p>
+  <h1>{{ booking.event_type }}</h1>
+  <p>{{ badge(booking.status) }}</p>
+  <p>{{ booking.event_date.strftime('%d %b %Y') }} at {{ booking.start_time.strftime('%H:%M') }} · {{ format_duration(booking.duration) }}</p>
+  <p>{{ booking.venue }} · {{ booking.guest_count }} guests · budget {{ booking.budget|zmw }}</p>
+  <p>{{ booking.requirements|nl2br }}</p>
+  {% if booking.rejection_reason %}<p><strong>Reason.</strong> {{ booking.rejection_reason }}</p>{% endif %}
+  {% if booking.cancellation_reason %}<p><strong>Cancellation.</strong> {{ booking.cancellation_reason }}</p>{% endif %}
+  <h2>Quotations</h2>
+  {% for quotation in booking.quotations %}
+    <article class="ticket-option">
+      <strong>{{ quotation.amount|zmw }}</strong> {{ badge(quotation.status) }}
+      <p>{{ quotation.description|nl2br }}</p>
+      {% if quotation.status == 'pending' %}
+      <form method="post" action="{{ url_for('client.quotation_respond', quotation_id=quotation.id) }}" class="d-inline">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <input type="hidden" name="decision" value="accepted">
+        <button class="btn btn-green btn-sm" type="submit">Accept quotation</button>
+      </form>
+      <form method="post" action="{{ url_for('client.quotation_respond', quotation_id=quotation.id) }}" class="d-inline">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <input type="hidden" name="decision" value="declined">
+        <button class="btn btn-outline-secondary btn-sm" type="submit">Decline</button>
+      </form>
+      {% endif %}
+    </article>
+  {% else %}
+    <p>No quotation has been sent yet.</p>
+  {% endfor %}
+  {% if can_cancel %}
+  <form method="post" action="{{ url_for('client.booking_cancel', booking_id=booking.id) }}" data-confirm="Cancel this booking request?">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <label class="form-label" for="reason">Cancellation reason</label>
+    <textarea class="form-control mb-2" id="reason" name="reason" required minlength="5"></textarea>
+    <button class="btn btn-outline-danger" type="submit">Cancel booking</button>
+  </form>
+  <p class="form-text">Accepted bookings can be cancelled until 48 hours before the start time.</p>
+  {% endif %}
+</div>
+{% endblock %}

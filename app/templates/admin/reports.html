@@ -1,0 +1,212 @@
+{% extends "layouts/dashboard.html" %}
+{% from "partials/ui.html" import badge, empty %}
+{% from "partials/report_ui.html" import filters, export_menu, stat, section_title, insights, chart, event_table, transaction_table, finance_list, report_url %}
+{% block title %}Reports · EventLink Zambia{% endblock %}
+{% block page %}
+{% set o = report.overview %}
+{% set f = report.finance %}
+{% set rate = report.rate %}
+<div class="dash-head report-head">
+  <div>
+    <p class="eyebrow">Administration</p>
+    <h1>Platform reports</h1>
+    <p>Revenue, commission and performance across every planner on EventLink.</p>
+  </div>
+  {{ export_menu(export_endpoint) }}
+</div>
+
+{% call filters(report, periods, transaction_types) %}
+<div>
+  <label class="form-label" for="report-planner">Planner report</label>
+  <select class="form-select" id="report-planner" data-planner-jump aria-describedby="report-planner-help">
+    <option value="">Open a planner's report…</option>
+    {% for row in report.comparison %}
+    <option value="{{ url_for('admin.planner_report', profile_id=row.profile.id, period=report.period.key, date_from=request.args.get('date_from') if report.period.key == 'custom' else None, date_to=request.args.get('date_to') if report.period.key == 'custom' else None) }}">{{ row.profile.business_name }}</option>
+    {% endfor %}
+  </select>
+  <small class="form-text" id="report-planner-help">Opens that planner's full report.</small>
+</div>
+{% endcall %}
+
+{% if filter_error %}
+<div class="alert alert-warning report-alert" role="alert"><i class="bi bi-exclamation-circle" aria-hidden="true"></i> {{ filter_error }}</div>
+{% endif %}
+
+<div class="report-body" data-report-body>
+<section class="dash-section" aria-labelledby="report-overview">
+  {{ section_title("speedometer2", "Platform overview", "Verified payments only. EventLink keeps " ~ rate ~ "% of each payment as commission.", id="report-overview") }}
+  <div class="report-stats report-stats-money">
+    {{ stat("cash-stack", f.total_gross|zmw, "Total platform revenue", "Gross verified payments") }}
+    {{ stat("percent", f.total_commission|zmw, "Commission earned (" ~ rate ~ "%)", "After refunds", "copper") }}
+    {{ stat("ticket-perforated", o.ticket_revenue|zmw, "Ticket revenue", "After refunds of " ~ (f.refunds|zmw)) }}
+    {{ stat("journal-check", f.booking_revenue|zmw, "Booking revenue", "Paid through EventLink") }}
+  </div>
+  <div class="report-stats">
+    {{ stat("people", o.planners, "Registered planners", o.planners_approved ~ " approved · " ~ o.planners_new ~ " new in period") }}
+    {{ stat("calendar-plus", o.events.total, "Events created") }}
+    {{ stat("broadcast", o.events.published + o.events.sold_out, "Published events", "Including sold out") }}
+    {{ stat("hourglass-split", o.events.pending, "Pending events", None, "copper") }}
+    {{ stat("x-octagon", o.events.rejected, "Rejected events") }}
+    {{ stat("ticket", o.tickets_sold, "Tickets sold") }}
+    {{ stat("check-circle", o.successful_transactions, "Successful transactions") }}
+    {{ stat("clock-history", f.pending_count, "Pending transactions", f.pending_amount|zmw ~ " awaiting confirmation", "copper") }}
+    {{ stat("arrow-counterclockwise", o.refunded_transactions, "Refunded transactions", o.refunded_tickets ~ " tickets · " ~ (f.refunds|zmw)) }}
+  </div>
+</section>
+
+<section class="dash-section" aria-labelledby="report-insights">
+  {{ section_title("lightbulb", "Performance insights", "Worked out from the records in the selected period.", id="report-insights") }}
+  {{ insights(report.insights) }}
+</section>
+
+<section class="dash-section" aria-labelledby="report-charts">
+  {{ section_title("graph-up", "Trends", "Grouped by " ~ ("day" if report.period.bucket == "day" else "month") ~ ".", id="report-charts") }}
+  <div class="row g-3">
+    <div class="col-xl-6">{{ chart("admin-revenue-chart", ("Daily" if report.period.bucket == "day" else "Monthly") ~ " platform revenue", "Gross revenue and commission", "No revenue in this period", "Revenue appears here once ticket payments are verified.", "Bar chart of platform revenue and commission over time") }}</div>
+    <div class="col-xl-6">{{ chart("admin-tickets-chart", "Ticket sales", "Tickets issued", "No tickets sold in this period", "Ticket sales appear here once customers pay.", "Bar chart of tickets sold over time") }}</div>
+    <div class="col-xl-6">{{ chart("admin-planners-chart", "Top planners", "Net revenue and commission", "No planner revenue in this period", "Planners appear here once their events earn revenue.", "Horizontal bar chart of the top planners by revenue") }}</div>
+    <div class="col-xl-6">{{ chart("admin-events-chart", "Best-performing events", "Net revenue per event", "No event revenue in this period", "Events appear here once they earn revenue.", "Horizontal bar chart of the best events by revenue") }}</div>
+    <div class="col-xl-6">{{ chart("admin-bookings-chart", "Planner bookings", "Requests received and completed", "No booking requests in this period", "Booking requests appear here.", "Bar chart of booking requests over time") }}</div>
+    <div class="col-xl-6">{{ chart("admin-registrations-chart", "New registrations", "Clients and planners", "No registrations in this period", "New accounts appear here.", "Line chart of new client and planner accounts over time") }}</div>
+  </div>
+</section>
+
+<section class="dash-section" aria-labelledby="report-planners">
+  {{ section_title("people", "Planner performance comparison", "Tick up to " ~ max_compared ~ " planners and select Compare to see them side by side. Pending balance is all-time earnings less payouts recorded.", id="report-planners") }}
+  {% if compare_error %}
+  <div class="alert alert-warning report-alert" role="alert"><i class="bi bi-exclamation-circle" aria-hidden="true"></i> {{ compare_error }}</div>
+  {% endif %}
+  <form class="panel" method="get" action="{{ url_for('admin.reports') }}#report-planners" data-compare-form>
+    {% for key, value in request.args.items() if key != "compare" %}
+    <input type="hidden" name="{{ key }}" value="{{ value }}">
+    {% endfor %}
+    {% if report.comparison %}
+    <div class="table-responsive">
+      <table class="table align-middle mb-0 request-table report-table">
+        <thead>
+          <tr>
+            <th scope="col"><span class="visually-hidden">Compare</span></th>
+            <th>Planner</th><th class="text-end">Events created</th><th class="text-end">Tickets sold</th>
+            <th class="text-end">Net revenue</th><th class="text-end">Commission ({{ rate }}%)</th><th class="text-end">Earnings ({{ 100 - rate }}%)</th>
+            <th class="text-end">Bookings</th><th class="text-end">Acceptance</th><th class="text-end">Pending payout</th><th></th>
+          </tr>
+        </thead>
+        <tbody>
+        {% for row in report.comparison %}
+          <tr{% if row.profile.id in compare_ids %} class="report-row-selected"{% endif %}>
+            <td><input class="form-check-input" type="checkbox" name="compare" value="{{ row.profile.id }}" id="compare-{{ row.profile.id }}"{% if row.profile.id in compare_ids %} checked{% endif %} aria-label="Compare {{ row.profile.business_name }}"></td>
+            <td><label for="compare-{{ row.profile.id }}"><strong>{{ row.profile.business_name }}</strong></label><br>{{ badge(row.profile.approval_status) }}</td>
+            <td class="text-end">{{ row.events }}</td>
+            <td class="text-end">{{ row.tickets }}</td>
+            <td class="text-end">{{ row.net_revenue|zmw }}</td>
+            <td class="text-end">{{ row.commission|zmw }}</td>
+            <td class="text-end"><strong>{{ row.earnings|zmw }}</strong></td>
+            <td class="text-end">{{ row.bookings }}</td>
+            <td class="text-end">{{ "%d%%"|format(row.acceptance_rate) if row.acceptance_rate is not none else "n/a" }}</td>
+            <td class="text-end">{{ row.balance|zmw }}</td>
+            <td class="text-end"><a class="btn btn-sm btn-outline-success" href="{{ url_for('admin.planner_report', profile_id=row.profile.id, period=report.period.key, date_from=request.args.get('date_from') if report.period.key == 'custom' else None, date_to=request.args.get('date_to') if report.period.key == 'custom' else None) }}">View report</a></td>
+          </tr>
+        {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    <div class="report-compare-actions">
+      <button class="btn btn-green" type="submit" data-report-apply><i class="bi bi-layout-split" aria-hidden="true"></i> Compare selected</button>
+      {% if compare_ids %}<a class="btn btn-outline-secondary" href="{{ report_url(compare=None) }}#report-planners">Clear comparison</a>{% endif %}
+    </div>
+    {% else %}
+    {{ empty("people", "No planners yet", "Planner accounts will be compared here once they register.") }}
+    {% endif %}
+  </form>
+
+  {% if compared %}
+  <div class="row g-3 mt-1">
+    <div class="col-xl-7">{{ chart("admin-compare-chart", "Side-by-side comparison", report.period.label, "Nothing to compare", "The selected planners have no revenue in this period.", "Bar chart comparing the selected planners") }}</div>
+    <div class="col-xl-5">
+      <section class="panel h-100">
+        <div class="panel-head"><h2>Selected planners</h2></div>
+        <div class="table-responsive">
+          <table class="table table-sm align-middle mb-0 report-compare-table">
+            <thead><tr><th></th>{% for row in compared %}<th class="text-end">{{ row.profile.business_name }}</th>{% endfor %}</tr></thead>
+            <tbody>
+              <tr><th>Events created</th>{% for row in compared %}<td class="text-end">{{ row.events }}</td>{% endfor %}</tr>
+              <tr><th>Tickets sold</th>{% for row in compared %}<td class="text-end">{{ row.tickets }}</td>{% endfor %}</tr>
+              <tr><th>Gross revenue</th>{% for row in compared %}<td class="text-end">{{ row.gross|zmw }}</td>{% endfor %}</tr>
+              <tr><th>Refunds</th>{% for row in compared %}<td class="text-end">{{ row.refunds|zmw }}</td>{% endfor %}</tr>
+              <tr><th>Commission</th>{% for row in compared %}<td class="text-end">{{ row.commission|zmw }}</td>{% endfor %}</tr>
+              <tr><th>Earnings</th>{% for row in compared %}<td class="text-end"><strong>{{ row.earnings|zmw }}</strong></td>{% endfor %}</tr>
+              <tr><th>Payouts in period</th>{% for row in compared %}<td class="text-end">{{ row.payouts|zmw }}</td>{% endfor %}</tr>
+              <tr><th>Bookings</th>{% for row in compared %}<td class="text-end">{{ row.bookings }}</td>{% endfor %}</tr>
+              <tr><th>Completion rate</th>{% for row in compared %}<td class="text-end">{{ "%d%%"|format(row.completion_rate) if row.completion_rate is not none else "n/a" }}</td>{% endfor %}</tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+    </div>
+  </div>
+  {% endif %}
+</section>
+
+<section class="dash-section" aria-labelledby="report-events">
+  {{ section_title("calendar-event", "Best-performing events", "Ranked by net revenue in the selected period.", id="report-events") }}
+  <div class="panel">
+    {% if report.best_events %}
+    {{ event_table(report.best_events, rate, link_events=False) }}
+    {% else %}
+    {{ empty("calendar-x", "No event revenue", "Events appear here once verified payments come in for them.") }}
+    {% endif %}
+  </div>
+</section>
+
+<section class="dash-section" aria-labelledby="report-finance">
+  {{ section_title("bank", "Financial report", "Only payments confirmed by the payment provider count as earned.", id="report-finance") }}
+  <div class="row g-3">
+    <div class="col-lg-6">
+      <section class="panel h-100">
+        <div class="panel-head"><h2>Revenue and commission</h2><span class="panel-note">{{ report.period.range_text }}</span></div>
+        {{ finance_list(f, rate) }}
+      </section>
+    </div>
+    <div class="col-lg-6">
+      <section class="panel h-100">
+        <div class="panel-head"><h2>Payments and payouts</h2></div>
+        <dl class="metric-list finance-list">
+          <div><dt>Live provider payments</dt><dd>{{ f.live_amount|zmw }}</dd></div>
+          <div><dt>Test-mode payments</dt><dd>{{ f.simulated_amount|zmw }}</dd></div>
+          <div><dt>Pending payments (not counted)</dt><dd>{{ f.pending_count }} · {{ f.pending_amount|zmw }}</dd></div>
+          <div><dt>Failed payments (not counted)</dt><dd>{{ f.failed_count }} · {{ f.failed_amount|zmw }}</dd></div>
+          <div><dt>Payouts recorded in this period</dt><dd>{{ f.payouts_period|zmw }}</dd></div>
+          <div class="finance-earnings"><dt>Pending payouts owed to planners</dt><dd>{{ f.balance|zmw }}</dd></div>
+        </dl>
+        {% if f.total_gross and not f.live_amount %}
+        <p class="panel-note mt-2 mb-0"><i class="bi bi-cone-striped" aria-hidden="true"></i> All revenue in this period came from test-mode payments, not real money.</p>
+        {% endif %}
+      </section>
+    </div>
+  </div>
+</section>
+
+<section class="dash-section" aria-labelledby="report-transactions">
+  {{ section_title("receipt", "Transaction records", transaction_types[report.transaction_type] ~ " in the selected period.", id="report-transactions") }}
+  <div class="panel">
+    <nav class="report-type-tabs no-print" aria-label="Transaction type">
+      {% for key, label in transaction_types.items() %}
+      <a class="report-type-tab{% if report.transaction_type == key %} active{% endif %}" href="{{ report_url(type=key) }}#report-transactions"{% if report.transaction_type == key %} aria-current="page"{% endif %}>{{ label }}</a>
+      {% endfor %}
+    </nav>
+    {% if report.transactions %}
+    {{ transaction_table(report.transactions, with_planner=True) }}
+    {% else %}
+    {{ empty("receipt", "No transactions", "There are no " ~ transaction_types[report.transaction_type]|lower ~ " in this period.") }}
+    {% endif %}
+  </div>
+</section>
+</div>
+
+<script type="application/json" id="report-charts-data">{{ report.charts|tojson }}</script>
+{% endblock %}
+
+{% block extra_js %}
+<script src="{{ url_for('static', filename='vendor/chartjs/chart.umd.min.js') }}"></script>
+<script src="{{ url_for('static', filename='js/reports.js') }}"></script>
+{% endblock %}

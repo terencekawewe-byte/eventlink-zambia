@@ -1,0 +1,64 @@
+{% extends "layouts/dashboard.html" %}
+{% from "partials/planner_media.html" import planner_avatar %}
+{% block title %}Edit planner profile · EventLink Zambia{% endblock %}
+{% block page %}
+<form class="auth-shell wide apply-form" method="post" enctype="multipart/form-data">
+  {{ form.hidden_tag() }}
+  <h1>Edit profile</h1>
+  <section class="apply-section">
+    <h2><i class="bi bi-building" aria-hidden="true"></i> Business information</h2>
+    <div class="row">
+      <div class="col-md-6 mb-3">{{ form.business_name.label(class="form-label") }}{{ form.business_name(class="form-control") }}{% for error in form.business_name.errors %}<div class="text-danger small">{{ error }}</div>{% endfor %}</div>
+      <div class="col-md-6 mb-3">{{ form.business_category.label(class="form-label") }}{{ form.business_category(class="form-select") }}{% for error in form.business_category.errors %}<div class="text-danger small">{{ error }}</div>{% endfor %}</div>
+      <div class="col-md-6 mb-3">{{ form.location.label(class="form-label") }}{{ form.location(class="form-control") }}{% for error in form.location.errors %}<div class="text-danger small">{{ error }}</div>{% endfor %}</div>
+      <div class="col-md-6 mb-3">{{ form.business_address.label(class="form-label") }}{{ form.business_address(class="form-control", placeholder="e.g. Plot 12, Cairo Road, Lusaka") }}{% for error in form.business_address.errors %}<div class="text-danger small">{{ error }}</div>{% endfor %}</div>
+      <div class="col-12 mb-3">{{ form.biography.label(class="form-label") }}{{ form.biography(class="form-control", rows=4) }}{% for error in form.biography.errors %}<div class="text-danger small">{{ error }}</div>{% endfor %}</div>
+      <div class="col-12 mb-3">{{ form.experience.label(class="form-label") }}{{ form.experience(class="form-control", rows=4) }}{% for error in form.experience.errors %}<div class="text-danger small">{{ error }}</div>{% endfor %}</div>
+      <div class="col-md-6 mb-3">{{ form.specialities.label(class="form-label") }}{{ form.specialities(class="form-control") }}<div class="form-text">Separate with commas.</div>{% for error in form.specialities.errors %}<div class="text-danger small">{{ error }}</div>{% endfor %}</div>
+      <div class="col-md-6 mb-3">{{ form.availability.label(class="form-label") }}{{ form.availability(class="form-control", rows=2) }}{% for error in form.availability.errors %}<div class="text-danger small">{{ error }}</div>{% endfor %}</div>
+    </div>
+  </section>
+
+  <section class="apply-section">
+    <h2><i class="bi bi-images" aria-hidden="true"></i> Business images</h2>
+    <p class="apply-note">JPEG, PNG or WebP, 2 MB or less each. You can keep up to 6 portfolio images.</p>
+    <div class="row g-3">
+      <div class="col-md-5">
+        <p class="form-label mb-2">Current logo or photo</p>
+        <div class="d-flex align-items-center gap-3 mb-3">{{ planner_avatar(profile) }}<span class="panel-note">{{ "Choose a new image below to replace it." if profile.profile_photo else "No image yet. Customers currently see your initials." }}</span></div>
+        <div class="upload-box" data-image-picker data-max-files="1" data-max-bytes="2097152" data-types="image/jpeg,image/png,image/webp">
+          <label class="upload-drop" for="profile_photo"><i class="bi bi-person-badge" aria-hidden="true"></i><span><strong>{{ "Replace logo or photo" if profile.profile_photo else "Add logo or photo" }}</strong><small>One file · max 2 MB</small></span></label>
+          <input class="upload-input" id="profile_photo" type="file" name="profile_photo" accept="image/jpeg,image/png,image/webp">
+          <div class="upload-previews" aria-live="polite"></div>
+          <div class="upload-error text-danger small" role="alert"></div>
+        </div>
+      </div>
+      <div class="col-md-7">
+        <p class="form-label mb-2">Portfolio ({{ profile.portfolio_images|length }} of 6)</p>
+        {% if profile.portfolio_images %}
+        <div class="upload-previews mb-3">
+          {% for image in profile.portfolio_images %}
+          {% set path = image.file_path|upload %}
+          <figure class="upload-thumb" data-gallery-item>
+            {% if path %}<img src="{{ url_for('static', filename=path) }}" alt="Portfolio image {{ loop.index }}" loading="lazy" data-fallback="remove">{% endif %}
+            <div class="upload-thumb-actions">
+              <button formaction="{{ url_for('planner.delete_portfolio', image_id=image.id) }}" formmethod="post" formnovalidate type="submit" data-upload-remove aria-label="Remove portfolio image {{ loop.index }}" title="Remove"><i class="bi bi-trash" aria-hidden="true"></i></button>
+            </div>
+          </figure>
+          {% endfor %}
+        </div>
+        {% endif %}
+        {% if profile.portfolio_images|length < 6 %}
+        <div class="upload-box" data-image-picker data-max-files="{{ 6 - profile.portfolio_images|length }}" data-max-bytes="2097152" data-types="image/jpeg,image/png,image/webp">
+          <label class="upload-drop" for="portfolio"><i class="bi bi-images" aria-hidden="true"></i><span><strong>Add portfolio images</strong><small>Up to {{ 6 - profile.portfolio_images|length }} more · max 2 MB each</small></span></label>
+          <input class="upload-input" id="portfolio" type="file" name="portfolio" accept="image/jpeg,image/png,image/webp" multiple>
+          <div class="upload-previews" aria-live="polite"></div>
+          <div class="upload-error text-danger small" role="alert"></div>
+        </div>
+        {% endif %}
+      </div>
+    </div>
+  </section>
+  <div class="apply-submit"><span></span>{{ form.submit(class="btn btn-green") }}</div>
+</form>
+{% endblock %}

@@ -1,0 +1,19 @@
+{% extends "layouts/dashboard.html" %}
+{% from "partials/report_ui.html" import export_menu %}
+{% block title %}Reports · EventLink Zambia{% endblock %}
+{% block page %}
+<div class="dash-head report-head">
+  <div>
+    <p class="eyebrow">Reports</p>
+    <h1>Performance reports</h1>
+    <p>Ticket sales, bookings and earnings for {{ profile.business_name }}.</p>
+  </div>
+  {{ export_menu(export_endpoint) }}
+</div>
+{% include "partials/report_planner_body.html" %}
+{% endblock %}
+
+{% block extra_js %}
+<script src="{{ url_for('static', filename='vendor/chartjs/chart.umd.min.js') }}"></script>
+<script src="{{ url_for('static', filename='js/reports.js') }}"></script>
+{% endblock %}

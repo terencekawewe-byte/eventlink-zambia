@@ -1,0 +1,32 @@
+{% extends "layouts/dashboard.html" %}
+{% from "partials/planner_media.html" import planner_avatar, portfolio_gallery %}
+{% block title %}Planner profile · EventLink Zambia{% endblock %}
+{% block page %}
+<section class="panel planner-section">
+  <div class="d-flex flex-wrap align-items-center gap-3">
+    {{ planner_avatar(profile, "planner-avatar-lg") }}
+    <div class="flex-grow-1">
+      <h1 class="h3 mb-1">{{ profile.business_name }}</h1>
+      <p class="text-muted mb-0"><i class="bi bi-geo-alt" aria-hidden="true"></i> {{ profile.location }}{% if profile.category_label %} · {{ profile.category_label }}{% endif %}</p>
+      {% if profile.business_address %}<p class="text-muted mb-0"><i class="bi bi-signpost" aria-hidden="true"></i> {{ profile.business_address }}</p>{% endif %}
+    </div>
+    <div class="d-flex flex-wrap gap-2">
+      <a class="btn btn-green" href="{{ url_for('planner.edit_profile') }}"><i class="bi bi-pencil" aria-hidden="true"></i> Edit profile</a>
+      <a class="btn btn-outline-secondary" href="{{ url_for('events.planner_detail', planner_id=profile.id) }}"><i class="bi bi-box-arrow-up-right" aria-hidden="true"></i> Public view</a>
+    </div>
+  </div>
+  {% if not profile.profile_photo %}<p class="panel-note mt-3 mb-0"><i class="bi bi-info-circle" aria-hidden="true"></i> Add a business logo or profile photo from Edit profile so customers recognise your business.</p>{% endif %}
+</section>
+<section class="panel planner-section">
+  <h2 class="h5">About</h2>
+  <p>{{ profile.biography|nl2br }}</p>
+  <p><strong>Experience.</strong> {{ profile.experience|nl2br }}</p>
+  <p><strong>Specialities.</strong> {{ profile.specialities }}</p>
+  <p class="mb-0"><strong>Availability.</strong> {{ profile.availability or "Not added yet" }}</p>
+</section>
+<section class="panel planner-section">
+  <h2 class="h5">Portfolio</h2>
+  {{ portfolio_gallery(profile, "my-portfolio", "No portfolio images yet", "Add photos of previous events from Edit profile. Customers see them on your public profile.") }}
+</section>
+{% include "partials/lightbox.html" %}
+{% endblock %}

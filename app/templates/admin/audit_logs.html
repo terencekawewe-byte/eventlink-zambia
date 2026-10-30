@@ -1,0 +1,46 @@
+{% extends "layouts/dashboard.html" %}
+{% from "partials/ui.html" import pager %}
+{% block title %}Audit log · EventLink Zambia{% endblock %}
+{% block page %}
+<h1>Audit log</h1>
+<form class="filters" method="get">
+  <div class="row g-2">
+    <div class="col-md-8"><label class="form-label" for="q">Action or reason</label><input class="form-control" id="q" name="q" value="{{ term }}"></div>
+    <div class="col-md-4"><label class="form-label" for="entity">Record type</label>
+      <select class="form-select" id="entity" name="entity">
+        <option value="">All records</option>
+        {% for value in entities %}<option value="{{ value }}" {% if entity == value %}selected{% endif %}>{{ value|replace('_', ' ')|capitalize }}</option>{% endfor %}
+      </select>
+    </div>
+    <div class="col-6 col-md-4"><label class="form-label" for="date_from">From</label><input class="form-control" type="date" id="date_from" name="date_from" value="{{ date_from }}"></div>
+    <div class="col-6 col-md-4"><label class="form-label" for="date_to">To</label><input class="form-control" type="date" id="date_to" name="date_to" value="{{ date_to }}"></div>
+    <div class="col-md-4 d-flex align-items-end gap-2">
+      <button class="btn btn-green" type="submit">Filter</button>
+      {% if term or entity or date_from or date_to %}<a class="btn btn-outline-secondary" href="{{ url_for('admin.audit_logs') }}">Clear</a>{% endif %}
+    </div>
+  </div>
+</form>
+<p class="panel-note">{{ result.total }} record{{ '' if result.total == 1 else 's' }} found. Audit records cannot be edited or deleted.</p>
+<div class="table-responsive">
+  <table class="table">
+    <thead><tr><th>When</th><th>Actor</th><th>Action</th><th>Record</th><th>Reason</th></tr></thead>
+    <tbody>
+      {% for item in result["items"] %}
+      <tr>
+        <td>{{ item.created_at|localdt }}</td>
+        <td>{{ item.actor.full_name if item.actor else "System" }}</td>
+        <td>{{ item.action }}</td>
+        <td>
+          {% if item.entity_type == 'user' and item.entity_id %}<a href="{{ url_for('admin.user_detail', user_id=item.entity_id) }}">user #{{ item.entity_id }}</a>
+          {% elif item.entity_type == 'event' and item.entity_id %}<a href="{{ url_for('admin.event_detail', event_id=item.entity_id) }}">event #{{ item.entity_id }}</a>
+          {% elif item.entity_type == 'planner_profile' and item.entity_id %}<a href="{{ url_for('admin.planner_detail', profile_id=item.entity_id) }}">planner_profile #{{ item.entity_id }}</a>
+          {% else %}{{ item.entity_type }} {% if item.entity_id %}#{{ item.entity_id }}{% endif %}{% endif %}
+        </td>
+        <td>{{ item.reason or "—" }}</td>
+      </tr>
+      {% else %}<tr><td colspan="5">No audit records match these filters.</td></tr>{% endfor %}
+    </tbody>
+  </table>
+</div>
+{{ pager(result) }}
+{% endblock %}

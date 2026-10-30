@@ -1,0 +1,36 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="dash-shell">
+  <button class="dash-menu-toggle no-print" type="button" data-bs-toggle="offcanvas" data-bs-target="#dashSidebar" aria-controls="dashSidebar">
+    <i class="bi bi-layout-sidebar-inset" aria-hidden="true"></i>
+    <span>Dashboard menu</span>
+  </button>
+  <aside class="dash-sidebar offcanvas-lg offcanvas-start no-print" id="dashSidebar" tabindex="-1" aria-labelledby="dashSidebarTitle">
+    <div class="offcanvas-header">
+      <h2 class="offcanvas-title" id="dashSidebarTitle">Dashboard menu</h2>
+      <button type="button" class="btn-close btn-close-white" data-bs-dismiss="offcanvas" data-bs-target="#dashSidebar" aria-label="Close menu"></button>
+    </div>
+    <div class="offcanvas-body">
+      {% include "partials/dashboard_sidebar.html" %}
+    </div>
+  </aside>
+  <div class="dash-main">
+    {% set crumb_role = current_user.role %}
+    {% if crumb_role == "admin" %}{% set crumb_home = url_for("admin.dashboard") %}
+    {% elif crumb_role == "planner" %}{% set crumb_home = url_for("planner.dashboard") if current_user.is_approved_planner else url_for("planner.pending") %}
+    {% else %}{% set crumb_home = url_for("client.dashboard") %}{% endif %}
+    <nav class="dash-crumbs no-print" aria-label="Breadcrumb">
+      <ol>
+        <li><a href="{{ crumb_home }}"><i class="bi bi-house-door" aria-hidden="true"></i> {{ "Admin" if crumb_role == "admin" else ("Planner" if crumb_role == "planner" else "My account") }}</a></li>
+        {% if request.endpoint in ("client.dashboard", "planner.dashboard", "planner.pending", "admin.dashboard") %}
+        <li aria-current="page">Dashboard</li>
+        {% else %}
+        {% block crumb_trail %}{% endblock %}
+        <li aria-current="page">{{ self.title().split(" · ")[0] }}</li>
+        {% endif %}
+      </ol>
+    </nav>
+    {% block page %}{% endblock %}
+  </div>
+</div>
+{% endblock %}

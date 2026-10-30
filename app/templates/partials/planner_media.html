@@ -1,0 +1,48 @@
+{% macro planner_avatar(profile, cls="") -%}
+{% set photo = profile.profile_photo|upload %}
+<span class="planner-avatar {{ cls }}{% if photo %} has-image{% endif %}">
+  {% if photo %}<img src="{{ url_for('static', filename=photo) }}" alt="Logo of {{ profile.business_name }}" loading="lazy" data-fallback>{% endif %}
+  <span class="planner-initials" {% if photo %}aria-hidden="true"{% else %}role="img" aria-label="{{ profile.business_name }}"{% endif %}>{{ profile.initials }}</span>
+</span>
+{%- endmacro %}
+
+{% macro planner_card(profile, completed=None) -%}
+{% set url = url_for('events.planner_detail', planner_id=profile.id) %}
+<article class="planner-card planner-card-media">
+  <a class="planner-card-image" href="{{ url }}" tabindex="-1" aria-hidden="true">
+    {{ planner_avatar(profile, "planner-avatar-cover") }}
+  </a>
+  <div class="planner-card-body">
+    {% if profile.category_label %}<p class="planner-card-category">{{ profile.category_label }}</p>{% endif %}
+    <h3><a href="{{ url }}">{{ profile.business_name }}</a></h3>
+    <p class="meta"><i class="bi bi-geo-alt" aria-hidden="true"></i> {{ profile.location }}</p>
+    {% if profile.biography %}<p class="planner-card-text">{{ profile.biography|truncate(110) }}</p>{% endif %}
+    <div class="planner-card-foot">
+      {% if completed is not none %}<span class="planner-card-stat"><i class="bi bi-patch-check" aria-hidden="true"></i> {{ completed }} completed booking{{ '' if completed == 1 else 's' }}</span>{% endif %}
+      <a class="btn btn-green btn-sm" href="{{ url }}">View profile</a>
+    </div>
+  </div>
+</article>
+{%- endmacro %}
+
+{% macro portfolio_gallery(profile, group, empty_title, empty_text) -%}
+{% set images = [] %}
+{% for image in profile.portfolio_images %}{% set path = image.file_path|upload %}{% if path %}{% set _ = images.append(path) %}{% endif %}{% endfor %}
+<div class="portfolio-gallery">
+  {% if images %}
+  <div class="portfolio-grid">
+    {% for path in images %}
+    <a class="portfolio-item" href="{{ url_for('static', filename=path) }}" data-lightbox="{{ group }}" data-caption="{{ profile.business_name }} · portfolio image {{ loop.index }} of {{ images|length }}" data-gallery-item>
+      <img src="{{ url_for('static', filename=path) }}" alt="Portfolio image {{ loop.index }} from {{ profile.business_name }}" loading="lazy" data-fallback="remove">
+      <span class="portfolio-zoom" aria-hidden="true"><i class="bi bi-arrows-fullscreen"></i></span>
+    </a>
+    {% endfor %}
+  </div>
+  {% endif %}
+  <div class="portfolio-empty" data-gallery-empty{% if images %} hidden{% endif %}>
+    <span class="empty-icon"><i class="bi bi-images" aria-hidden="true"></i></span>
+    <strong>{{ empty_title }}</strong>
+    <p>{{ empty_text }}</p>
+  </div>
+</div>
+{%- endmacro %}

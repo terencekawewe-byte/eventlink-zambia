@@ -1,0 +1,13 @@
+{% extends "layouts/dashboard.html" %}
+{% block title %}Profile · EventLink Zambia{% endblock %}
+{% block page %}
+<form class="auth-shell needs-check" method="post" novalidate>
+  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+  <h1>Your profile</h1>
+  <div class="mb-3"><label class="form-label" for="full_name">Full name</label><input class="form-control" id="full_name" name="full_name" value="{{ current_user.full_name }}" required></div>
+  <div class="mb-3"><label class="form-label" for="email">Email</label><input class="form-control" id="email" value="{{ current_user.email }}" disabled></div>
+  <div class="mb-3"><label class="form-label" for="phone">Phone</label><input class="form-control" id="phone" name="phone" value="{{ current_user.phone }}" required data-phone="1"></div>
+  <button class="btn btn-green" type="submit">Save profile</button>
+  <a class="btn btn-outline-secondary" href="{{ url_for('auth.change_password') }}">Change password</a>
+</form>
+{% endblock %}

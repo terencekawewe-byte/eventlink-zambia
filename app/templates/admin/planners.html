@@ -1,0 +1,28 @@
+{% extends "layouts/dashboard.html" %}
+{% from "partials/ui.html" import badge %}
+{% block title %}Planners · EventLink Zambia{% endblock %}
+{% block page %}
+<h1>Planner applications</h1>
+<nav class="inbox-tabs" aria-label="Filter planners by status">
+  <a href="{{ url_for('admin.planners') }}"{% if not status %} aria-current="page"{% endif %}>All</a>
+  {% for value in ['pending', 'approved', 'rejected', 'suspended'] %}
+    <a href="{{ url_for('admin.planners', status=value) }}"{% if status == value %} aria-current="page"{% endif %}>{{ value|title }}</a>
+  {% endfor %}
+</nav>
+<div class="table-responsive">
+  <table class="table">
+    <thead><tr><th>Business</th><th>Contact</th><th>Location</th><th>Status</th><th></th></tr></thead>
+    <tbody>
+      {% for profile in profiles %}
+      <tr>
+        <td>{{ profile.business_name }}</td>
+        <td>{{ profile.user.full_name }}<div class="meta">{{ profile.user.email }}</div></td>
+        <td>{{ profile.location }}</td>
+        <td>{{ badge(profile.approval_status) }}</td>
+        <td><a href="{{ url_for('admin.planner_detail', profile_id=profile.id) }}">Review</a></td>
+      </tr>
+      {% else %}<tr><td colspan="5">No planner profiles in this list.</td></tr>{% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endblock %}

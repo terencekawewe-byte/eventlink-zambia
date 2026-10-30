@@ -1,0 +1,31 @@
+{% extends "layouts/dashboard.html" %}
+{% from "partials/ui.html" import badge, pager %}
+{% block title %}Orders · EventLink Zambia{% endblock %}
+{% block page %}
+<h1>Orders</h1>
+<form class="filters" method="get">
+  <div class="row g-2">
+    <div class="col-md-6"><label class="form-label" for="q">Reference, client, or event</label><input class="form-control" id="q" name="q" value="{{ term }}"></div>
+    <div class="col-md-3"><label class="form-label" for="date">Date</label><input class="form-control" id="date" type="date" name="date" value="{{ date_value }}"></div>
+    <div class="col-md-3 d-flex align-items-end"><button class="btn btn-green" type="submit">Search</button></div>
+  </div>
+</form>
+<div class="table-responsive">
+  <table class="table">
+    <thead><tr><th>Reference</th><th>Client</th><th>Event</th><th>Total</th><th>Status</th><th></th></tr></thead>
+    <tbody>
+      {% for order in result["items"] %}
+      <tr>
+        <td>{{ order.order_reference }}</td>
+        <td>{{ order.client.full_name }}</td>
+        <td>{{ order.event.title }}</td>
+        <td>{{ order.total_amount|zmw }}</td>
+        <td>{{ badge(order.order_status) }}</td>
+        <td><a href="{{ url_for('admin.order_detail', order_reference=order.order_reference) }}">Details</a></td>
+      </tr>
+      {% else %}<tr><td colspan="6">No orders match.</td></tr>{% endfor %}
+    </tbody>
+  </table>
+</div>
+{{ pager(result) }}
+{% endblock %}

@@ -1,0 +1,25 @@
+{% extends "base.html" %}
+{% from "partials/ui.html" import empty, pager %}
+{% from "partials/planner_media.html" import planner_card %}
+{% block title %}Event planners · EventLink Zambia{% endblock %}
+{% block content %}
+<div class="section-head"><div><p class="eyebrow">Planners</p><h1>Approved event planners</h1></div></div>
+<form class="filters" method="get">
+  <label class="form-label" for="location">Town or city</label>
+  <div class="d-flex gap-2">
+    <input class="form-control" id="location" name="location" list="towns" value="{{ location }}">
+    <button class="btn btn-green" type="submit">Filter</button>
+  </div>
+  <datalist id="towns">{% for town in towns %}<option value="{{ town }}"></option>{% endfor %}</datalist>
+</form>
+{% if result["items"] %}
+<div class="planner-grid">
+  {% for profile in result["items"] %}
+    {{ planner_card(profile, completed.get(profile.id, 0)) }}
+  {% endfor %}
+</div>
+{{ pager(result) }}
+{% else %}
+{{ empty("people", "No planners match", "Approved planners will appear here.") }}
+{% endif %}
+{% endblock %}

@@ -1,0 +1,274 @@
+{% from "partials/ui.html" import badge, empty %}
+{% from "partials/report_ui.html" import filters, stat, section_title, insights, chart, event_table, booking_table, transaction_table, finance_list, sell_through, report_url %}
+{% set o = report.overview %}
+{% set f = report.finance %}
+{% set rate = report.rate %}
+
+{{ filters(report, periods, transaction_types, event_options) }}
+
+{% if filter_error %}
+<div class="alert alert-warning report-alert" role="alert"><i class="bi bi-exclamation-circle" aria-hidden="true"></i> {{ filter_error }}</div>
+{% endif %}
+
+<div class="report-body" data-report-body>
+{% if report.event %}
+<div class="alert alert-light report-alert report-event-scope" role="status">
+  <i class="bi bi-funnel-fill" aria-hidden="true"></i>
+  <span>Showing <strong>{{ report.event.title }}</strong> only. Bookings and payouts are not linked to a single event, so they are left out of this view.</span>
+  <a class="btn btn-sm btn-outline-secondary ms-auto" href="{{ report_url(event=None) }}">Show all events</a>
+</div>
+{% endif %}
+
+<section class="dash-section" aria-labelledby="report-overview">
+  {{ section_title("speedometer2", "Overview", "Verified payments only. Commission is " ~ rate ~ "% of each payment and the remaining " ~ (100 - rate) ~ "% is " ~ ("the planner's" if admin_view else "yours") ~ ".", id="report-overview") }}
+  <div class="report-stats report-stats-money">
+    {{ stat("cash-stack", o.gross|zmw, "Gross revenue", "Ticket sales" ~ (" and bookings" if f.booking_revenue else "") ~ " paid in this period") }}
+    {{ stat("percent", o.commission|zmw, "Platform commission (" ~ rate ~ "%)", "Kept by EventLink", "copper") }}
+    {{ stat("wallet2", o.earnings|zmw, "Net earnings (" ~ (100 - rate) ~ "%)", "After commission and refunds", "earn") }}
+    {{ stat("ticket-perforated", o.ticket_revenue|zmw, "Ticket revenue", "After refunds of " ~ (f.refunds|zmw)) }}
+  </div>
+  <div class="report-stats report-stats-5">
+    {{ stat("calendar-plus", o.events.total, "Events created") }}
+    {{ stat("broadcast", o.events.published + o.events.sold_out, "Published", "Including sold out") }}
+    {{ stat("hourglass-split", o.events.pending, "Pending approval", None, "copper") }}
+    {{ stat("x-octagon", o.events.rejected, "Rejected") }}
+    {{ stat("check2-circle", o.events.completed, "Completed") }}
+  </div>
+  <div class="report-stats report-stats-money">
+    {{ stat("ticket", o.tickets_sold, "Tickets sold") }}
+    {% if not report.event %}
+    {{ stat("journal-check", o.bookings_total, "Bookings received") }}
+    {{ stat("check2-all", o.bookings_completed, "Bookings completed") }}
+    {{ stat("slash-circle", o.bookings_cancelled, "Bookings cancelled", None, "copper") }}
+    {% endif %}
+  </div>
+</section>
+
+<section class="dash-section" aria-labelledby="report-insights">
+  {{ section_title("lightbulb", "Performance insights", "Worked out from the records in the selected period.", id="report-insights") }}
+  {{ insights(report.insights) }}
+</section>
+
+<section class="dash-section" aria-labelledby="report-charts">
+  {{ section_title("graph-up", "Trends", "Grouped by " ~ ("day" if report.period.bucket == "day" else "month") ~ ".", id="report-charts") }}
+  <div class="row g-3">
+    <div class="col-xl-6">{{ chart("report-revenue-chart", ("Daily" if report.period.bucket == "day" else "Monthly") ~ " revenue", "Gross ticket revenue and refunds", "No revenue in this period", "Revenue appears here once ticket payments are verified.", "Bar chart of gross revenue and refunds over time") }}</div>
+    <div class="col-xl-6">{{ chart("report-earnings-chart", "Earnings trend", "Planner earnings and commission", "No earnings in this period", "Earnings appear here once ticket payments are verified.", "Line chart of planner earnings and commission over time") }}</div>
+    <div class="col-xl-6">{{ chart("report-tickets-chart", "Ticket sales", "Tickets issued", "No tickets sold in this period", "Ticket sales appear here once customers pay.", "Bar chart of tickets sold over time") }}</div>
+    <div class="col-xl-6">{{ chart("report-category-chart", "Sales by ticket category", "Tickets issued per category", "No ticket categories sold", "Category sales appear here once tickets are issued.", "Doughnut chart of tickets sold per ticket category") }}</div>
+    {% if not report.event %}
+    <div class="col-xl-6">{{ chart("report-bookings-chart", "Bookings", "Requests received and completed", "No booking requests in this period", "Booking requests from clients appear here.", "Bar chart of booking requests over time") }}</div>
+    <div class="col-xl-6">{{ chart("report-events-chart", "Event comparison", "Net revenue per event", "No event revenue in this period", "Events appear here once they earn revenue.", "Horizontal bar chart comparing revenue per event") }}</div>
+    {% endif %}
+  </div>
+</section>
+
+<section class="dash-section" aria-labelledby="report-events">
+  {{ section_title("calendar-event", "Event performance", "Select an event to see its full breakdown. Available and remaining tickets are current totals; sales and revenue are for the selected period.", id="report-events") }}
+  <div class="panel">
+    {% if report.events %}
+    {{ event_table(report.events, rate, link_events=not report.event) }}
+    {% else %}
+    {{ empty("calendar-x", "No events yet", "Events " ~ ("this planner creates" if admin_view else "you create") ~ " will be listed here with their ticket sales and earnings.", None if admin_view else url_for("planner.create_event"), None if admin_view else "Create an event") }}
+    {% endif %}
+  </div>
+
+  {% if report.event_detail %}
+  {% set d = report.event_detail %}
+  <div class="panel mt-3 report-event-detail">
+    <div class="panel-head">
+      <h2>{{ d.event.title }}</h2>
+      {{ badge(d.status, d.status_label) }}
+    </div>
+    <dl class="report-detail-facts">
+      <div><dt>Category</dt><dd>{{ d.event.category.name if d.event.category else "" }}</dd></div>
+      <div><dt>Event date</dt><dd>{{ d.event.start_datetime|localdt }}</dd></div>
+      <div><dt>Venue</dt><dd>{{ d.event.venue }}{% if d.event.location %}, {{ d.event.location }}{% endif %}</dd></div>
+      <div><dt>Tickets</dt><dd>{{ d.sold_all }} sold of {{ d.capacity }} · {{ d.remaining }} remaining{% if d.reserved %} · {{ d.reserved }} held at checkout{% endif %}</dd></div>
+      <div><dt>Net revenue</dt><dd>{{ d.net_revenue|zmw }}</dd></div>
+      <div><dt>Commission ({{ rate }}%)</dt><dd>{{ d.commission|zmw }}</dd></div>
+      <div><dt>Earnings ({{ 100 - rate }}%)</dt><dd><strong>{{ d.earnings|zmw }}</strong></dd></div>
+    </dl>
+    <div class="table-responsive">
+      <table class="table align-middle mb-0 request-table report-table">
+        <thead><tr><th>Ticket category</th><th class="text-end">Price</th><th class="text-end">Available</th><th class="text-end">Sold overall</th><th class="text-end">Remaining</th><th class="text-end">Sold in period</th><th class="text-end">Value sold in period</th></tr></thead>
+        <tbody>
+        {% for t in d.types %}
+          <tr>
+            <td><strong>{{ t.name }}</strong>{{ sell_through(t) }}</td>
+            <td class="text-end">{{ t.price|zmw }}</td>
+            <td class="text-end">{{ t.total }}</td>
+            <td class="text-end">{{ t.sold_all }}</td>
+            <td class="text-end">{{ t.remaining }}</td>
+            <td class="text-end">{{ t.sold }}</td>
+            <td class="text-end">{{ t.revenue|zmw }}</td>
+          </tr>
+        {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+  {% endif %}
+</section>
+
+<section class="dash-section" aria-labelledby="report-tickets">
+  {{ section_title("ticket-detailed", "Ticket sales analytics", None, id="report-tickets") }}
+  <div class="report-stats">
+    {{ stat("ticket", report.tickets.sold, "Tickets sold") }}
+    {{ stat("check-circle", report.tickets.successful_transactions, "Successful transactions") }}
+    {{ stat("arrow-counterclockwise", report.tickets.refunded, "Refunded tickets", (report.tickets.refunded_amount|zmw) ~ " refunded", "copper") }}
+  </div>
+  <div class="row g-3 mt-1">
+    <div class="col-lg-4">
+      <section class="panel h-100">
+        <div class="panel-head"><h2>By ticket category</h2></div>
+        {% if report.tickets.categories %}
+        <dl class="metric-list">
+          {% for c in report.tickets.categories %}
+          <div><dt>{{ c.name }}</dt><dd>{{ c.tickets }} · {{ c.revenue|zmw }}</dd></div>
+          {% endfor %}
+        </dl>
+        {% else %}
+        <p class="panel-note mb-0">No tickets were issued in this period.</p>
+        {% endif %}
+      </section>
+    </div>
+    <div class="col-lg-4">
+      <section class="panel h-100">
+        <div class="panel-head"><h2>Best-performing events</h2></div>
+        {% if report.tickets.best %}
+        <ol class="report-rank">
+          {% for row in report.tickets.best %}
+          <li><span>{{ row.event.title }}</span><strong>{{ row.net_revenue|zmw }}</strong><small>{{ row.sold }} sold in period</small></li>
+          {% endfor %}
+        </ol>
+        {% else %}
+        <p class="panel-note mb-0">No event earned revenue in this period.</p>
+        {% endif %}
+      </section>
+    </div>
+    <div class="col-lg-4">
+      <section class="panel h-100">
+        <div class="panel-head"><h2>Low ticket sales</h2></div>
+        {% if report.tickets.low %}
+        <ul class="report-rank report-rank-low">
+          {% for row in report.tickets.low %}
+          <li><span>{{ row.event.title }}</span><strong>{{ row.sell_through }}% sold</strong><small>{{ row.sold_all }} of {{ row.capacity }} tickets · sales end {{ row.event.sales_end|localdate }}</small></li>
+          {% endfor %}
+        </ul>
+        {% else %}
+        <p class="panel-note mb-0">No event on sale for over a week is below 10% sold.</p>
+        {% endif %}
+      </section>
+    </div>
+  </div>
+</section>
+
+{% if not report.event %}
+{% set b = report.bookings %}
+<section class="dash-section" aria-labelledby="report-bookings">
+  {{ section_title("journal-text", "Booking performance", "Booking requests received in the selected period.", id="report-bookings") }}
+  <div class="report-stats report-stats-compact">
+    {{ stat("inbox", b.total, "Total bookings") }}
+    {{ stat("hand-thumbs-up", b.accepted, "Accepted", "Including in progress and completed") }}
+    {{ stat("hand-thumbs-down", b.rejected, "Rejected") }}
+    {{ stat("hourglass-split", b.pending, "Pending", None, "copper") }}
+    {{ stat("check2-all", b.completed, "Completed") }}
+    {{ stat("slash-circle", b.cancelled, "Cancelled") }}
+  </div>
+  <div class="row g-3 mt-1">
+    <div class="col-lg-4">
+      <section class="panel h-100">
+        <div class="panel-head"><h2>Booking money</h2></div>
+        <dl class="metric-list finance-list">
+          <div><dt>Booking revenue paid through EventLink</dt><dd>{{ b.revenue|zmw }}</dd></div>
+          <div class="finance-minus"><dt>Platform commission ({{ rate }}%)</dt><dd>{{ b.commission|zmw }}</dd></div>
+          <div class="finance-earnings"><dt>Net booking earnings ({{ 100 - rate }}%)</dt><dd>{{ b.earnings|zmw }}</dd></div>
+          <div><dt>Value of accepted quotations</dt><dd>{{ b.agreed_value|zmw }}</dd></div>
+        </dl>
+        <p class="panel-note mt-2 mb-0">Booking fees are agreed and paid directly between {{ "the planner" if admin_view else "you" }} and the client, so no commission is charged on them. Accepted quotation values are shown for reference only.</p>
+      </section>
+    </div>
+    <div class="col-lg-8">
+      <section class="panel h-100">
+        <div class="panel-head"><h2>Booking history</h2></div>
+        {% if report.booking_rows %}
+        {{ booking_table(report.booking_rows) }}
+        {% else %}
+        {{ empty("journal-x", "No booking requests", "Booking requests received in this period will appear here.") }}
+        {% endif %}
+      </section>
+    </div>
+  </div>
+</section>
+{% endif %}
+
+<section class="dash-section" aria-labelledby="report-finance">
+  {{ section_title("bank", "Financial report", "Only payments confirmed by the payment provider count as earned.", id="report-finance") }}
+  <div class="row g-3">
+    <div class="col-lg-6">
+      <section class="panel h-100">
+        <div class="panel-head"><h2>Revenue and commission</h2><span class="panel-note">{{ report.period.range_text }}</span></div>
+        {{ finance_list(f, rate) }}
+      </section>
+    </div>
+    <div class="col-lg-6">
+      <section class="panel h-100">
+        <div class="panel-head"><h2>Payouts</h2></div>
+        {% if report.event %}
+        <p class="panel-note mb-0">Payouts cover all of {{ "the planner's" if admin_view else "your" }} events, so they are not shown for a single event.</p>
+        {% else %}
+        <dl class="metric-list finance-list">
+          <div><dt>Payouts completed in this period</dt><dd>{{ f.payouts_period|zmw }}</dd></div>
+          <div><dt>Total earned to date</dt><dd>{{ f.earned_all_time|zmw }}</dd></div>
+          <div><dt>Total paid out to date</dt><dd>{{ f.paid_all_time|zmw }}</dd></div>
+          <div class="finance-earnings"><dt>Pending payout balance</dt><dd>{{ f.balance|zmw }}</dd></div>
+        </dl>
+        {% endif %}
+        {% if f.pending_count or f.failed_count %}
+        <p class="panel-note mt-2 mb-0"><i class="bi bi-info-circle" aria-hidden="true"></i>
+          Not counted as revenue:
+          {% if f.pending_count %}{{ f.pending_count }} payment{{ "s" if f.pending_count != 1 }} still awaiting confirmation ({{ f.pending_amount|zmw }}){% endif %}{% if f.pending_count and f.failed_count %} and {% endif %}{% if f.failed_count %}{{ f.failed_count }} failed payment{{ "s" if f.failed_count != 1 }} ({{ f.failed_amount|zmw }}){% endif %}.
+        </p>
+        {% endif %}
+        {% if admin_view and f.simulated_amount %}
+        <p class="panel-note mt-2 mb-0"><i class="bi bi-cone-striped" aria-hidden="true"></i> {{ f.simulated_amount|zmw }} of this period's gross came from test-mode payments.</p>
+        {% endif %}
+      </section>
+    </div>
+  </div>
+  {% if report.payouts %}
+  <div class="panel mt-3">
+    <div class="panel-head"><h2>Payout history</h2><span class="panel-note">{{ report.period.range_text }}</span></div>
+    <div class="table-responsive">
+      <table class="table align-middle mb-0 request-table report-table">
+        <thead><tr><th>Date</th><th>Payout reference</th><th>Method</th><th>Transfer reference</th><th class="text-end">Amount</th></tr></thead>
+        <tbody>
+        {% for p in report.payouts %}
+          <tr><td>{{ p.when|localdt }}</td><td><code class="report-ref">{{ p.reference }}</code></td><td>{{ p.method_label }}</td><td>{{ p.external_reference }}{% if p.note %}<br><small class="text-muted">{{ p.note }}</small>{% endif %}</td><td class="text-end"><strong>{{ p.amount|zmw }}</strong></td></tr>
+        {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+  {% endif %}
+</section>
+
+<section class="dash-section" aria-labelledby="report-transactions">
+  {{ section_title("receipt", "Transaction records", transaction_types[report.transaction_type] ~ " in the selected period.", id="report-transactions") }}
+  <div class="panel">
+    <nav class="report-type-tabs no-print" aria-label="Transaction type">
+      {% for key, label in transaction_types.items() %}
+      <a class="report-type-tab{% if report.transaction_type == key %} active{% endif %}" href="{{ report_url(type=key) }}#report-transactions"{% if report.transaction_type == key %} aria-current="page"{% endif %}>{{ label }}</a>
+      {% endfor %}
+    </nav>
+    {% if report.transactions %}
+    {{ transaction_table(report.transactions) }}
+    {% else %}
+    {{ empty("receipt", "No transactions", "There are no " ~ transaction_types[report.transaction_type]|lower ~ " in this period.") }}
+    {% endif %}
+  </div>
+</section>
+</div>
+
+<script type="application/json" id="report-charts-data">{{ report.charts|tojson }}</script>

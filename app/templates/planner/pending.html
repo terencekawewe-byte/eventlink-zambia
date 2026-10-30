@@ -1,0 +1,45 @@
+{% extends "layouts/dashboard.html" %}
+{% from "partials/ui.html" import badge %}
+{% block title %}Planner application · EventLink Zambia{% endblock %}
+{% block page %}
+<section class="dash-welcome">
+  <div>
+    <p class="eyebrow">Planner application</p>
+    <h1>{{ profile.business_name if profile else current_user.full_name }}</h1>
+    <p>Welcome, {{ current_user.full_name }}. {% if profile %}{{ badge(profile.approval_status) }}{% endif %}</p>
+  </div>
+</section>
+
+<div class="panel">
+  {% if profile %}
+    {% if profile.approval_status == 'pending' %}
+      <h2>Your application is being reviewed</h2>
+      <p>An administrator checks every planner before clients can book them. Planner tools stay locked until your application is approved, and you will get a notification when it is reviewed.</p>
+    {% elif profile.approval_status == 'rejected' %}
+      <h2>Your application was not approved</h2>
+      {% if profile.rejection_reason %}<p><strong>Reason given:</strong> {{ profile.rejection_reason }}</p>{% endif %}
+      <p>Please <a href="{{ url_for('pages.contact') }}">contact EventLink</a> if you would like to discuss the decision.</p>
+    {% elif profile.approval_status == 'suspended' %}
+      <h2>Planner access is suspended</h2>
+      {% if profile.rejection_reason %}<p><strong>Reason given:</strong> {{ profile.rejection_reason }}</p>{% endif %}
+      <p>Please <a href="{{ url_for('pages.contact') }}">contact EventLink</a> for help.</p>
+    {% endif %}
+    <p class="text-muted mb-4">Submitted {{ profile.created_at|localdate }} · {{ profile.location }} · {{ profile.specialities }}</p>
+
+    <section class="profile-meter" aria-label="Profile completeness">
+      <div class="profile-meter-head"><strong>Profile {{ profile.completion_percent }}% complete</strong></div>
+      <div class="progress progress-thin" role="progressbar" aria-label="Profile completion" aria-valuenow="{{ profile.completion_percent }}" aria-valuemin="0" aria-valuemax="100">
+        <div class="progress-bar bg-success" style="width: {{ profile.completion_percent }}%"></div>
+      </div>
+      <ul class="checklist">
+        {% for label, done in profile.profile_checklist %}
+        <li class="{{ 'done' if done else 'todo' }}"><i class="bi bi-{{ 'check-circle-fill' if done else 'circle' }}" aria-hidden="true"></i> {{ label }}<span class="visually-hidden"> {{ "complete" if done else "missing" }}</span></li>
+        {% endfor %}
+      </ul>
+      <p class="panel-note mb-0">You can add the missing details once your account is approved.</p>
+    </section>
+  {% else %}
+    <p>This account does not have a planner profile.</p>
+  {% endif %}
+</div>
+{% endblock %}

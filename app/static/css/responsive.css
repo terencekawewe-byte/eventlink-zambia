@@ -1,0 +1,44 @@
+@media (max-width: 991px) {
+  .event-grid, .planner-grid, .steps, .stat-grid, .trust-grid { grid-template-columns: repeat(2, 1fr); }
+  .nav-search { margin: .8rem 0; }
+  .about-stats { grid-template-columns: repeat(2, 1fr); }
+  .about-stat:nth-child(3) { border-left: 0; }
+  .about-stat:nth-child(n+3) { border-top: 1px solid var(--line); }
+  .about-story { grid-template-columns: 1fr; gap: 1.5rem; }
+  .audience-grid { grid-template-columns: 1fr; }
+  .contact-layout { grid-template-columns: 1fr; }
+  .contact-side { order: 2; }
+}
+
+@media (max-width: 640px) {
+  .event-grid, .planner-grid, .steps, .stat-grid, .trust-grid { grid-template-columns: 1fr; }
+  .about-stats { margin: -1.5rem .5rem 0; }
+  .about-stat { padding: 1.1rem .6rem; }
+  .about-stat strong { font-size: 1.7rem; }
+  .mission-card { padding: 1.5rem; }
+  .contact-layout { margin: -2rem .5rem 0; }
+  .contact-form { padding: 1.4rem 1.1rem; }
+  .contact-submit .btn { width: 100%; }
+  .inbox-card { padding: 1.1rem; }
+  .inbox-card-head { flex-wrap: wrap; }
+  .inbox-meta { justify-items: start; margin-left: 0; text-align: left; width: 100%; }
+  .navbar-brand.brand-plate { padding: .3rem .6rem; margin-right: .5rem; }
+  .navbar-brand.brand-plate img { height: 36px; }
+  .footer-brand img { height: 68px; }
+  .guide-hero { padding: 2.25rem 1.25rem; }
+  .guide-section { margin-top: 3rem; }
+  .guide-cta { padding: 1.75rem 1.25rem; }
+  .hero {
+    min-height: 420px;
+    padding: 2.5rem 1.2rem;
+    background-image:
+      linear-gradient(180deg, rgba(5, 46, 34, .9) 0%, rgba(8, 73, 54, .82) 60%, rgba(8, 73, 54, .7) 100%),
+      url("../images/zambia-map-hero.jpg");
+    background-position: center 50%;
+  }
+  .hero-search { flex-direction: column; border-radius: 1rem; }
+  .section-head { flex-direction: column; align-items: start; gap: 1rem; }
+  .home-section { margin-top: 2.5rem; }
+  .empty-state { padding: 2.25rem 1.1rem; }
+  .table-responsive { font-size: .92rem; }
+}

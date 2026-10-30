@@ -1,0 +1,14 @@
+{% from "partials/ui.html" import poster, badge %}
+<article class="event-card">
+  {{ poster(event) }}
+  <div class="event-card-body">
+    <p class="eyebrow">{{ event.category.name }} · {{ event.location }}</p>
+    <h3><a href="{{ url_for('events.detail', event_id=event.id) }}">{{ event.title }}</a></h3>
+    <p class="meta"><i class="bi bi-geo-alt"></i> {{ event.venue }}</p>
+    <p class="meta"><i class="bi bi-calendar-event"></i> {{ event.start_datetime|localdt }}</p>
+    {% if event.ticket_types %}
+      <p class="price">From {{ (event.ticket_types|map(attribute='price')|list)|min|zmw }}</p>
+    {% endif %}
+    <a class="btn btn-green btn-sm" href="{{ url_for('events.detail', event_id=event.id) }}">View event</a>
+  </div>
+</article>

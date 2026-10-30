@@ -1,0 +1,33 @@
+{% extends "layouts/dashboard.html" %}
+{% from "partials/ui.html" import badge, empty %}
+{% block title %}Planner bookings · EventLink Zambia{% endblock %}
+{% block page %}
+<h1>Booking requests</h1>
+<nav class="inbox-tabs" aria-label="Filter booking requests by status">
+  <a href="{{ url_for('planner.bookings') }}"{% if not status %} aria-current="page"{% endif %}>All</a>
+  {% for value in ['pending', 'accepted', 'in_progress', 'completed', 'rejected', 'cancelled'] %}
+    <a href="{{ url_for('planner.bookings', status=value) }}"{% if status == value %} aria-current="page"{% endif %}>{{ value|replace('_', ' ')|title }}</a>
+  {% endfor %}
+</nav>
+{% if bookings %}
+<div class="table-responsive">
+  <table class="table">
+    <thead><tr><th>Client</th><th>Type</th><th>When</th><th>Guests</th><th>Status</th><th></th></tr></thead>
+    <tbody>
+      {% for booking in bookings %}
+      <tr>
+        <td>{{ booking.client.full_name }}</td>
+        <td>{{ booking.event_type }}</td>
+        <td>{{ booking.event_date.strftime('%d %b %Y') }} {{ booking.start_time.strftime('%H:%M') }}</td>
+        <td>{{ booking.guest_count }}</td>
+        <td>{{ badge(booking.status) }}</td>
+        <td><a href="{{ url_for('planner.booking_detail', booking_id=booking.id) }}">Open</a></td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% else %}
+{{ empty("inbox", "No bookings", "New client requests will appear here.") }}
+{% endif %}
+{% endblock %}

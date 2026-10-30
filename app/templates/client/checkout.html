@@ -1,0 +1,161 @@
+{% extends "base.html" %}
+{% from "partials/ui.html" import badge %}
+{% block title %}Checkout {{ order.order_reference }} · EventLink Zambia{% endblock %}
+
+{% set wallets = {
+  'mtn': {'network': 'MTN', 'wallet': 'MTN Mobile Money', 'prefixes': ['096', '076'], 'logo': 'MTN', 'note': 'Pay from your MoMo wallet'},
+  'airtel': {'network': 'Airtel', 'wallet': 'Airtel Money', 'prefixes': ['097', '077'], 'logo': 'airtel', 'note': 'Pay from your Airtel Money wallet'},
+  'zamtel': {'network': 'Zamtel', 'wallet': 'Zamtel Money', 'prefixes': ['095', '075'], 'logo': 'Zamtel', 'note': 'Pay from your Zamtel wallet'},
+} %}
+{% set mobile = wallets.get(selected, wallets['mtn']) %}
+
+{% macro method_options() -%}
+<fieldset class="pay-methods">
+  <legend class="visually-hidden">Payment method</legend>
+  {% for key, info in wallets.items() %}
+  <label class="pay-option">
+    <input type="radio" name="method" value="{{ key }}" data-kind="mobile" data-network="{{ info.network }}" data-wallet="{{ info.wallet }}" data-prefixes="{{ info.prefixes|join(',') }}"{% if selected == key %} checked{% endif %}>
+    <span class="pay-logo pay-logo-{{ key }}" aria-hidden="true">{{ info.logo }}</span>
+    <span class="pay-text"><strong>{{ info.wallet }}</strong><small>{{ info.note }}</small></span>
+    <i class="bi bi-check-circle-fill pay-check" aria-hidden="true"></i>
+  </label>
+  {% endfor %}
+  <label class="pay-option">
+    <input type="radio" name="method" value="card" data-kind="card"{% if selected == 'card' %} checked{% endif %}>
+    <span class="pay-logo pay-logo-card" aria-hidden="true"><i class="bi bi-credit-card-2-front"></i></span>
+    <span class="pay-text"><strong>Card</strong><small>Visa or Mastercard</small></span>
+    <i class="bi bi-check-circle-fill pay-check" aria-hidden="true"></i>
+  </label>
+</fieldset>
+{%- endmacro %}
+
+{% macro payer_details() -%}
+{% set card = selected == 'card' %}
+<div class="checkout-step"><span>2</span><h2 data-details-title>{% if card %}Enter the name on your card{% else %}Enter your {{ mobile.wallet }} number{% endif %}</h2></div>
+<div class="pay-field" data-pay-field="mobile"{% if card %} hidden{% endif %}>
+  <label class="form-label" for="payer_phone" data-phone-label>{{ mobile.wallet }} number</label>
+  <div class="pay-input">
+    <i class="bi bi-phone" aria-hidden="true"></i>
+    <input class="form-control form-control-lg{% if detail_error and not card %} is-invalid{% endif %}" id="payer_phone" name="payer_phone" type="tel" inputmode="tel" autocomplete="tel" maxlength="16" value="{{ payer_phone }}" placeholder="{{ mobile.prefixes[0] }} 123 4567" aria-describedby="payer_phone_hint payer_phone_error" required data-phone-input{% if card %} disabled{% endif %}>
+  </div>
+  <p class="invalid-feedback d-block" id="payer_phone_error" data-field-error>{% if detail_error and not card %}{{ detail_error }}{% endif %}</p>
+  <p class="form-text" id="payer_phone_hint" data-phone-hint>{{ mobile.network }} numbers start with {{ mobile.prefixes|join(' or ') }}. Use the number registered to your wallet.</p>
+</div>
+<div class="pay-field" data-pay-field="card"{% if not card %} hidden{% endif %}>
+  <label class="form-label" for="card_name">Name on card</label>
+  <div class="pay-input">
+    <i class="bi bi-person" aria-hidden="true"></i>
+    <input class="form-control form-control-lg{% if detail_error and card %} is-invalid{% endif %}" id="card_name" name="card_name" type="text" autocomplete="cc-name" maxlength="120" value="{{ card_name }}" placeholder="As printed on the card" aria-describedby="card_name_hint card_name_error" required data-card-input{% if not card %} disabled{% endif %}>
+  </div>
+  <p class="invalid-feedback d-block" id="card_name_error" data-field-error>{% if detail_error and card %}{{ detail_error }}{% endif %}</p>
+  <p class="form-text" id="card_name_hint">Visa and Mastercard are accepted. EventLink never stores card numbers or security codes.</p>
+</div>
+{%- endmacro %}
+
+{% block content %}
+{% set pending = payment and payment.status == 'pending' and order.order_status == 'pending' %}
+<div class="checkout-page">
+  <a class="checkout-back" href="{{ url_for('events.detail', event_id=order.event_id) }}"><i class="bi bi-arrow-left" aria-hidden="true"></i> Back to event</a>
+  <div class="checkout-head">
+    <div>
+      <p class="eyebrow">Secure checkout</p>
+      <h1>{% if pending %}Complete your payment{% elif order.order_status == 'paid' %}Payment confirmed{% else %}Order {{ order.order_reference }}{% endif %}</h1>
+    </div>
+    <p class="checkout-ref">Order <strong>{{ order.order_reference }}</strong> {{ badge(order.order_status) }}</p>
+  </div>
+
+  <div class="row g-4 align-items-start">
+    <div class="col-lg-7">
+      <section class="checkout-card">
+        {% if pending and (simulation or payment_mode == 'live') %}
+          <div class="checkout-step"><span>1</span><h2>Choose how to pay</h2></div>
+          {% if simulation %}
+          <form method="post" action="{{ url_for('payments.simulate', order_reference=order.order_reference) }}" data-checkout-form>
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            {{ method_options() }}
+            {{ payer_details() }}
+            <div class="checkout-step"><span>3</span><h2>Pay now</h2></div>
+            <p class="checkout-amount">Amount to pay <strong>{{ order.total_amount|zmw }}</strong></p>
+            <button class="btn btn-green btn-lg w-100 checkout-pay" type="submit" name="outcome" value="successful">
+              <i class="bi bi-lock-fill" aria-hidden="true"></i> Pay now · {{ order.total_amount|zmw }}
+            </button>
+            <button class="btn btn-link checkout-cancel" type="submit" name="outcome" value="failed" formnovalidate data-confirm-click="Cancel this payment? Your reserved tickets will be released and no tickets will be issued.">Cancel payment</button>
+          </form>
+          {% else %}
+          <form method="post" action="{{ url_for('payments.live_method', order_reference=order.order_reference) }}" data-checkout-form>
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            {{ method_options() }}
+            {{ payer_details() }}
+            <div class="checkout-step"><span>3</span><h2>Pay now</h2></div>
+            <p class="checkout-amount">Amount to pay <strong>{{ order.total_amount|zmw }}</strong></p>
+            <button class="btn btn-green btn-lg w-100 checkout-pay" type="submit">
+              <i class="bi bi-lock-fill" aria-hidden="true"></i> Continue with this method
+            </button>
+            <p class="form-text text-center mt-2">Your order updates as soon as the provider confirms the payment.</p>
+          </form>
+          {% endif %}
+          <div class="checkout-secure">
+            <i class="bi bi-shield-lock-fill" aria-hidden="true"></i>
+            <p><strong>Your payment is protected.</strong> Tickets are issued only after the payment is verified. EventLink never asks for your mobile money PIN or card security code.</p>
+          </div>
+        {% elif order.order_status == 'paid' %}
+          <div class="checkout-result checkout-result-success">
+            <span class="checkout-result-icon"><i class="bi bi-check-lg" aria-hidden="true"></i></span>
+            <h2>Your tickets are ready</h2>
+            <p>We received your payment of {{ order.total_amount|zmw }}{% if payment %} by {{ payment.payment_method|provider_label }}{% endif %}.</p>
+            <a class="btn btn-green" href="{{ url_for('client.tickets') }}"><i class="bi bi-ticket-perforated" aria-hidden="true"></i> View my tickets</a>
+          </div>
+        {% elif payment and payment.status == 'failed' %}
+          <div class="checkout-result checkout-result-failed">
+            <span class="checkout-result-icon"><i class="bi bi-x-lg" aria-hidden="true"></i></span>
+            <h2>Payment not completed</h2>
+            <p>No money was taken and no tickets were issued. The tickets held for this order have been released.</p>
+            <a class="btn btn-green" href="{{ url_for('events.detail', event_id=order.event_id) }}">Try again</a>
+          </div>
+        {% else %}
+          <div class="checkout-result">
+            <span class="checkout-result-icon"><i class="bi bi-hourglass-bottom" aria-hidden="true"></i></span>
+            <h2>This order is no longer awaiting payment</h2>
+            <p>{% if order.order_status == 'cancelled' %}The reservation time ran out before payment, so the tickets were released.{% elif order.order_status == 'refunded' %}This order was refunded.{% else %}Its current status is {{ order.order_status|replace('_', ' ') }}.{% endif %}</p>
+            <a class="btn btn-green" href="{{ url_for('events.detail', event_id=order.event_id) }}">Back to event</a>
+          </div>
+        {% endif %}
+      </section>
+    </div>
+
+    <div class="col-lg-5">
+      <aside class="checkout-card checkout-summary">
+        <h2>Order summary</h2>
+        <div class="checkout-event">
+          {% set image = order.event.poster_path|upload %}
+          <span class="checkout-event-thumb">
+            {% if image %}<img src="{{ url_for('static', filename=image) }}" alt="">{% else %}<i class="bi bi-calendar2-event" aria-hidden="true"></i>{% endif %}
+          </span>
+          <div>
+            <strong>{{ order.event.title }}</strong>
+            <span><i class="bi bi-calendar-event" aria-hidden="true"></i> {{ order.event.start_datetime|localdt }}</span>
+            <span><i class="bi bi-geo-alt" aria-hidden="true"></i> {{ order.event.venue }}, {{ order.event.location }}</span>
+          </div>
+        </div>
+        <ul class="checkout-lines">
+          {% for item in order.items %}
+          <li>
+            <span>{{ item.quantity }} × {{ item.ticket_type.name }}<small>{{ item.unit_price|zmw }} each</small></span>
+            <strong>{{ item.subtotal|zmw }}</strong>
+          </li>
+          {% endfor %}
+        </ul>
+        <div class="checkout-total"><span>Total</span><strong>{{ order.total_amount|zmw }}</strong></div>
+        {% if pending %}
+        <div class="checkout-timer" data-countdown="{{ order.expires_at.isoformat() }}Z">
+          <i class="bi bi-clock-history" aria-hidden="true"></i>
+          <p>Tickets held for you for <strong data-countdown-text>{{ order.expires_at|localdt }}</strong><small>Complete payment before {{ order.expires_at|localdt }}.</small></p>
+        </div>
+        {% endif %}
+        {% if payment %}<p class="checkout-payref">Payment reference {{ payment.payment_reference }}</p>{% endif %}
+      </aside>
+    </div>
+  </div>
+</div>
+{% endblock %}
+{% block extra_js %}<script src="{{ url_for('static', filename='js/checkout.js') }}"></script>{% endblock %}

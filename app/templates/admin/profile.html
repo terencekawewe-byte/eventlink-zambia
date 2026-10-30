@@ -1,0 +1,42 @@
+{% extends "layouts/dashboard.html" %}
+{% block title %}My profile · EventLink Zambia{% endblock %}
+{% block page %}
+<h1>My profile</h1>
+<div class="row g-4">
+  <div class="col-lg-6">
+    <form class="panel needs-check" method="post" novalidate>
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <h2 class="h5">Account details</h2>
+      <div class="mb-3"><label class="form-label" for="full_name">Full name</label><input class="form-control" id="full_name" name="full_name" value="{{ current_user.full_name }}" required></div>
+      <div class="mb-3"><label class="form-label" for="email">Email</label><input class="form-control" id="email" value="{{ current_user.email }}" disabled><div class="form-text">Email is your sign-in name and cannot be changed here.</div></div>
+      <div class="mb-3"><label class="form-label" for="phone">Phone</label><input class="form-control" id="phone" name="phone" value="{{ current_user.phone }}" required data-phone="1"></div>
+      <dl class="detail-list">
+        <dt>Role</dt><dd>Administrator</dd>
+        <dt>Member since</dt><dd>{{ current_user.created_at|localdate }}</dd>
+      </dl>
+      <button class="btn btn-green" type="submit">Save profile</button>
+      <a class="btn btn-outline-secondary" href="{{ url_for('auth.change_password') }}">Change password</a>
+    </form>
+  </div>
+  <div class="col-lg-6">
+    <section class="panel h-100" aria-labelledby="recent-heading">
+      <div class="panel-head">
+        <h2 id="recent-heading" class="h5">Your recent actions</h2>
+        <a href="{{ url_for('admin.audit_logs') }}">Audit log</a>
+      </div>
+      {% if recent %}
+      <ul class="list-rows">
+        {% for item in recent %}
+        <li>
+          <div class="row-main">
+            <strong>{{ item.action|replace('_', ' ')|capitalize }}</strong>
+            <span>{{ item.entity_type|replace('_', ' ') }}{% if item.entity_id %} #{{ item.entity_id }}{% endif %} · {{ item.created_at|localdt }}</span>
+          </div>
+        </li>
+        {% endfor %}
+      </ul>
+      {% else %}<p class="panel-note mb-0">You have not taken any recorded actions yet.</p>{% endif %}
+    </section>
+  </div>
+</div>
+{% endblock %}

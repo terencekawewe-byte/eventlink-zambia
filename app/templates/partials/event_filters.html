@@ -1,0 +1,29 @@
+<form class="filters" method="get" action="{{ url_for('events.listing') }}">
+  <div class="row g-2">
+    <div class="col-md-4"><label class="form-label" for="q">Event name</label><input class="form-control" id="q" name="q" value="{{ filters.q }}"></div>
+    <div class="col-md-4"><label class="form-label" for="category">Category</label>
+      <select class="form-select" id="category" name="category">
+        <option value="">All categories</option>
+        {% for category in categories %}
+          <option value="{{ category.id }}" {% if filters.category == category.id|string %}selected{% endif %}>{{ category.name }}</option>
+        {% endfor %}
+      </select>
+    </div>
+    <div class="col-md-4"><label class="form-label" for="location">Town or city</label><input class="form-control" id="location" name="location" list="towns" value="{{ filters.location }}"></div>
+    <div class="col-md-3"><label class="form-label" for="date_from">From</label><input class="form-control" id="date_from" type="date" name="date_from" value="{{ filters.date_from }}"></div>
+    <div class="col-md-3"><label class="form-label" for="date_to">To</label><input class="form-control" id="date_to" type="date" name="date_to" value="{{ filters.date_to }}"></div>
+    <div class="col-md-2"><label class="form-label" for="price_min">Min ZMW</label><input class="form-control" id="price_min" name="price_min" value="{{ filters.price_min }}"></div>
+    <div class="col-md-2"><label class="form-label" for="price_max">Max ZMW</label><input class="form-control" id="price_max" name="price_max" value="{{ filters.price_max }}"></div>
+    <div class="col-md-2"><label class="form-label" for="sort">Sort</label>
+      <select class="form-select" id="sort" name="sort">
+        <option value="date_asc" {% if filters.sort == 'date_asc' %}selected{% endif %}>Date, soonest</option>
+        <option value="date_desc" {% if filters.sort == 'date_desc' %}selected{% endif %}>Date, latest</option>
+        <option value="price_asc" {% if filters.sort == 'price_asc' %}selected{% endif %}>Price, low</option>
+        <option value="price_desc" {% if filters.sort == 'price_desc' %}selected{% endif %}>Price, high</option>
+      </select>
+    </div>
+  </div>
+  <button class="btn btn-green mt-3" type="submit">Apply filters</button>
+  <a class="btn btn-outline-secondary mt-3" href="{{ url_for('events.listing') }}">Clear</a>
+  <datalist id="towns">{% for town in towns %}<option value="{{ town }}"></option>{% endfor %}</datalist>
+</form>

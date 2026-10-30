@@ -1,0 +1,18 @@
+{% extends "base.html" %}
+{% from "partials/ui.html" import empty, pager %}
+{% block title %}Search results · EventLink Zambia{% endblock %}
+{% block content %}
+<div class="section-head"><div><p class="eyebrow">Search</p><h1>Search results</h1><p>{{ result.total }} matching event{{ '' if result.total == 1 else 's' }}</p></div></div>
+{% include "partials/event_filters.html" %}
+{% if errors %}
+  <div class="alert alert-danger">{% for error in errors %}<div>{{ error }}</div>{% endfor %}</div>
+{% endif %}
+{% if result["items"] %}
+<div class="event-grid">
+  {% for event in result["items"] %}{% include "partials/event_card.html" %}{% endfor %}
+</div>
+{{ pager(result) }}
+{% else %}
+{{ empty("search", "No matching events", "Try another name, city, date, or price range.") }}
+{% endif %}
+{% endblock %}

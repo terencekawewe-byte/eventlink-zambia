@@ -1,0 +1,32 @@
+{% extends "layouts/dashboard.html" %}
+{% from "partials/ui.html" import badge %}
+{% block title %}Settings · EventLink Zambia{% endblock %}
+{% block page %}
+<div class="row g-4">
+  <div class="col-lg-6">
+    <div class="panel">
+      <h1>Event categories</h1>
+      {% for category in categories %}
+      <form class="d-flex justify-content-between align-items-center border-bottom py-2" method="post" action="{{ url_for('admin.category_toggle', category_id=category.id) }}">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <span>{{ category.name }} · {{ badge('published' if category.is_active else 'suspended') }}</span>
+        <button class="btn btn-outline-secondary btn-sm" type="submit">{{ 'Deactivate' if category.is_active else 'Activate' }}</button>
+      </form>
+      {% endfor %}
+      <form method="post" class="mt-3">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <div class="mb-2"><label class="form-label" for="name">New category</label><input class="form-control" id="name" name="name" required minlength="3"></div>
+        <div class="mb-2"><label class="form-label" for="description">Description</label><input class="form-control" id="description" name="description" required minlength="3"></div>
+        <button class="btn btn-green" type="submit">Add category</button>
+      </form>
+    </div>
+  </div>
+  <div class="col-lg-6">
+    <div class="panel">
+      <h2>Contact messages</h2>
+      <p>Messages sent from the public contact page now have their own inbox.</p>
+      <a class="btn btn-green" href="{{ url_for('admin.messages') }}"><i class="bi bi-inbox" aria-hidden="true"></i> Open messages</a>
+    </div>
+  </div>
+</div>
+{% endblock %}

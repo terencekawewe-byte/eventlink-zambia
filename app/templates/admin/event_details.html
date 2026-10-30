@@ -1,0 +1,58 @@
+{% extends "layouts/dashboard.html" %}
+{% from "partials/ui.html" import poster, badge %}
+{% from "partials/artists.html" import artist_cards %}
+{% block title %}{{ event.title }} · EventLink Zambia{% endblock %}
+{% block page %}
+<div class="panel">
+  {{ poster(event) }}
+  <h1>{{ event.title }}</h1>
+  <p>Submitted by {{ event.organiser.full_name }} ({{ event.organiser.email }})</p>
+  <p>{{ badge(event.approval_status) }} {{ badge(event.publication_status) }}</p>
+  <p>{{ event.category.name }} · {{ event.venue }}, {{ event.location }}</p>
+  <p>{{ event.start_datetime|localdt }} – {{ event.end_datetime|localdt }}</p>
+  <p>Sales {{ event.sales_start|localdt }} – {{ event.sales_end|localdt }}</p>
+  <p>{{ event.description|nl2br }}</p>
+  <p>Contact: {{ event.contact_info }}</p>
+  <p>Tickets sold: {{ sold }}</p>
+  <h2>Ticket categories</h2>
+  {% for ticket in event.ticket_types %}
+    <p>{{ ticket.name }} · {{ ticket.price|zmw }} · {{ ticket.quantity_sold }} sold · {{ ticket.quantity_reserved }} reserved · {{ ticket.quantity_total }} total</p>
+  {% endfor %}
+  {% if event.artists %}
+  {{ artist_cards(event.artists, "Artists & performers") }}
+  {% else %}
+  <h2 class="mt-4">Artists &amp; performers</h2>
+  <p class="meta">The planner has not listed any artists for this event.</p>
+  {% endif %}
+  {% if event.rejection_reason %}<p><strong>Rejection.</strong> {{ event.rejection_reason }}</p>{% endif %}
+  {% if event.cancellation_reason %}<p><strong>Cancellation.</strong> {{ event.cancellation_reason }}</p>{% endif %}
+  {% if event.approval_status in ['pending', 'rejected'] %}
+  <form method="post" action="{{ url_for('admin.event_approve', event_id=event.id) }}" data-confirm="Approve and publish this event?">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <button class="btn btn-green" type="submit">Approve and publish</button>
+  </form>
+  {% endif %}
+  <form method="post" action="{{ url_for('admin.event_reject', event_id=event.id) }}" class="mt-3">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <label class="form-label" for="reject-reason">Rejection reason</label>
+    <textarea class="form-control mb-2" id="reject-reason" name="reason" required minlength="5"></textarea>
+    <button class="btn btn-outline-danger" type="submit">Reject</button>
+  </form>
+  {% if event.publication_status == 'published' %}
+  <form method="post" action="{{ url_for('admin.event_suspend', event_id=event.id) }}" class="mt-3">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <label class="form-label" for="suspend-reason">Suspension reason</label>
+    <textarea class="form-control mb-2" id="suspend-reason" name="reason" required minlength="5"></textarea>
+    <button class="btn btn-outline-secondary" type="submit">Suspend</button>
+  </form>
+  {% endif %}
+  {% if event.publication_status != 'cancelled' %}
+  <form method="post" action="{{ url_for('admin.event_cancel', event_id=event.id) }}" class="mt-3" data-confirm="Cancel this event? Ticket records will be kept.">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <label class="form-label" for="cancel-reason">Cancellation reason</label>
+    <textarea class="form-control mb-2" id="cancel-reason" name="reason" required minlength="5"></textarea>
+    <button class="btn btn-outline-danger" type="submit">Cancel event</button>
+  </form>
+  {% endif %}
+</div>
+{% endblock %}

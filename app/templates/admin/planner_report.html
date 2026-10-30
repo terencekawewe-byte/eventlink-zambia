@@ -1,0 +1,88 @@
+{% extends "layouts/dashboard.html" %}
+{% from "partials/ui.html" import badge, csrf %}
+{% from "partials/report_ui.html" import export_menu %}
+{% block title %}{{ profile.business_name }} report · EventLink Zambia{% endblock %}
+{% block page %}
+<a class="report-back no-print" href="{{ url_for('admin.reports', period=report.period.key, date_from=request.args.get('date_from') if report.period.key == 'custom' else None, date_to=request.args.get('date_to') if report.period.key == 'custom' else None) }}#report-planners"><i class="bi bi-arrow-left" aria-hidden="true"></i> Back to platform reports</a>
+<div class="dash-head report-head">
+  <div>
+    <p class="eyebrow">Planner report</p>
+    <h1>{{ profile.business_name }}</h1>
+    <p>
+      {{ badge(profile.approval_status) }}
+      {{ profile.user.full_name }} · {{ profile.user.email }}{% if profile.approved_at %} · approved {{ profile.approved_at|localdate }}{% endif %}
+    </p>
+  </div>
+  <div class="report-head-actions">
+    <a class="btn btn-sm btn-outline-secondary no-print" href="{{ url_for('admin.planner_detail', profile_id=profile.id) }}"><i class="bi bi-person-vcard" aria-hidden="true"></i> Planner profile</a>
+    {{ export_menu(export_endpoint) }}
+  </div>
+</div>
+
+{% include "partials/report_planner_body.html" %}
+
+<section class="dash-section no-print" aria-labelledby="record-payout">
+  <div class="report-section-head" id="record-payout">
+    <h2><i class="bi bi-send-check" aria-hidden="true"></i> Record a payout</h2>
+    <p>Record money that has already been sent to this planner by bank transfer or mobile money. EventLink does not send the money itself.</p>
+  </div>
+  <div class="row g-3">
+    <div class="col-lg-4">
+      <section class="panel h-100">
+        <div class="panel-head"><h2>Balance</h2></div>
+        <dl class="metric-list finance-list">
+          <div><dt>Earned to date ({{ 100 - report.rate }}%)</dt><dd>{{ balance.earned|zmw }}</dd></div>
+          <div><dt>Paid out to date</dt><dd>{{ balance.paid|zmw }}</dd></div>
+          <div class="finance-earnings"><dt>Pending payout balance</dt><dd>{{ balance.balance|zmw }}</dd></div>
+        </dl>
+      </section>
+    </div>
+    <div class="col-lg-8">
+      <form class="panel h-100 report-payout-form" method="post" action="{{ url_for('admin.record_payout', profile_id=profile.id) }}" novalidate>
+        {{ csrf() }}
+        {% if balance.balance <= 0 %}
+        <p class="panel-note mb-0"><i class="bi bi-check-circle" aria-hidden="true"></i> Nothing is owed to this planner right now.</p>
+        {% else %}
+        <div class="row g-3">
+          <div class="col-md-6">
+            <label class="form-label" for="payout-amount">Amount sent (ZMW)</label>
+            <input class="form-control" id="payout-amount" name="amount" inputmode="decimal" required placeholder="e.g. {{ '%.2f'|format(balance.balance / 100) }}" aria-describedby="payout-amount-help">
+            <small class="form-text" id="payout-amount-help">Up to {{ balance.balance|zmw }}.</small>
+          </div>
+          <div class="col-md-6">
+            <label class="form-label" for="payout-method">Sent by</label>
+            <select class="form-select" id="payout-method" name="method" required>
+              <option value="">Choose…</option>
+              {% for key, label in payout_methods.items() %}<option value="{{ key }}">{{ label }}</option>{% endfor %}
+            </select>
+          </div>
+          <div class="col-md-6">
+            <label class="form-label" for="payout-reference">Transfer reference</label>
+            <input class="form-control" id="payout-reference" name="external_reference" required minlength="3" maxlength="80" aria-describedby="payout-reference-help">
+            <small class="form-text" id="payout-reference-help">The reference from the bank or mobile money confirmation.</small>
+          </div>
+          <div class="col-md-6">
+            <label class="form-label" for="payout-note">Note (optional)</label>
+            <input class="form-control" id="payout-note" name="note" maxlength="500">
+          </div>
+          <div class="col-12">
+            <div class="form-check">
+              <input class="form-check-input" type="checkbox" id="payout-confirm" name="confirm" value="yes" required>
+              <label class="form-check-label" for="payout-confirm">I confirm this money has already been sent to {{ profile.business_name }}.</label>
+            </div>
+          </div>
+          <div class="col-12">
+            <button class="btn btn-green" type="submit"><i class="bi bi-check2-circle" aria-hidden="true"></i> Record payout</button>
+          </div>
+        </div>
+        {% endif %}
+      </form>
+    </div>
+  </div>
+</section>
+{% endblock %}
+
+{% block extra_js %}
+<script src="{{ url_for('static', filename='vendor/chartjs/chart.umd.min.js') }}"></script>
+<script src="{{ url_for('static', filename='js/reports.js') }}"></script>
+{% endblock %}

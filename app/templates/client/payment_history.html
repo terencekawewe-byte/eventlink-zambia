@@ -1,0 +1,62 @@
+{% extends "layouts/dashboard.html" %}
+{% from "partials/ui.html" import badge, empty %}
+{% block title %}Payments · EventLink Zambia{% endblock %}
+{% block page %}
+<div class="dash-head">
+  <div>
+    <p class="eyebrow">Payments</p>
+    <h1>Payment history</h1>
+    <p>Every order you placed and the status of its payment.</p>
+  </div>
+</div>
+{% if orders %}
+{% for order in orders %}
+<article class="panel mb-3">
+  <div class="panel-head">
+    <div>
+      <h2>{{ order.event.title }}</h2>
+      <span class="meta">Order {{ order.order_reference }} · placed {{ order.created_at|localdt }}</span>
+    </div>
+    <div class="text-end">
+      <strong class="price d-block">{{ order.total_amount|zmw }}</strong>
+      {{ badge(order.order_status) }}
+    </div>
+  </div>
+  {% if order.payments %}
+  <div class="table-responsive">
+    <table class="table table-sm align-middle mb-0">
+      <thead><tr><th>Payment reference</th><th>Amount</th><th>Method</th><th>Date</th><th>Status</th></tr></thead>
+      <tbody>
+        {% for payment in order.payments %}
+        <tr>
+          <td><code>{{ payment.payment_reference }}</code>{% if payment.provider_reference %}<div class="meta">Provider ref: {{ payment.provider_reference }}</div>{% endif %}</td>
+          <td>{{ payment.amount|zmw }}</td>
+          <td>{{ payment.payment_method|provider_label }}</td>
+          <td>{{ payment.created_at|localdt }}{% if payment.verified_at %}<div class="meta">Verified {{ payment.verified_at|localdt }}</div>{% endif %}</td>
+          <td>{{ badge(payment.status) }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% else %}
+  <p class="meta mb-0">No payment has been started for this order.</p>
+  {% endif %}
+  {% if order.order_status == 'pending' %}
+  <a class="btn btn-sm btn-green mt-3" href="{{ url_for('payments.show', order_reference=order.order_reference) }}">Continue to payment</a>
+  {% endif %}
+  {% if order.event.publication_status == 'cancelled' and order.order_status == 'paid' %}
+  <form class="mt-3" method="post" action="{{ url_for('client.refund_request', order_reference=order.order_reference) }}">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <label class="form-label" for="reason-{{ order.id }}">Refund reason</label>
+    <textarea class="form-control mb-2" id="reason-{{ order.id }}" name="reason" required minlength="5"></textarea>
+    <button class="btn btn-outline-secondary" type="submit">Request refund</button>
+    <p class="form-text">Requesting a refund does not move money. Completion is recorded only after external confirmation.</p>
+  </form>
+  {% endif %}
+</article>
+{% endfor %}
+{% else %}
+{{ empty("receipt", "No payments yet", "Orders and their payment status will appear here.", url_for('events.listing'), "Browse events") }}
+{% endif %}
+{% endblock %}

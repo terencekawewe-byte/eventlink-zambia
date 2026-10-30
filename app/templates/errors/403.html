@@ -1,0 +1,10 @@
+{% extends "base.html" %}
+{% block title %}Access denied · EventLink Zambia{% endblock %}
+{% block content %}
+<div class="empty-state">
+  <i class="bi bi-shield-lock" aria-hidden="true"></i>
+  <h1>Access denied</h1>
+  <p>{{ detail or "You do not have permission to view this page." }}</p>
+  <a class="btn btn-green" href="{{ url_for('pages.home') }}">Back to home</a>
+</div>
+{% endblock %}

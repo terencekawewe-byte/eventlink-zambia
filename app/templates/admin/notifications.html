@@ -1,0 +1,12 @@
+{% extends "layouts/dashboard.html" %}
+{% block title %}Notifications · EventLink Zambia{% endblock %}
+{% block page %}
+<div class="d-flex justify-content-between align-items-center">
+  <h1>Notifications</h1>
+  <form method="post" action="{{ url_for('admin.notifications_read_all') }}">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <button class="btn btn-outline-secondary btn-sm" type="submit">Mark all read</button>
+  </form>
+</div>
+{% include "partials/notification_list.html" %}
+{% endblock %}

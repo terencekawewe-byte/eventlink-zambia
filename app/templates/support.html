@@ -1,0 +1,22 @@
+{% extends "base.html" %}
+{% block title %}Support · EventLink Zambia{% endblock %}
+{% block content %}
+<div class="panel">
+  <h1>Support</h1>
+  <div class="accordion" id="support-accordion">
+    <div class="accordion-item">
+      <h2 class="accordion-header"><button class="accordion-button" type="button" data-bs-toggle="collapse" data-bs-target="#s1">I paid but cannot see a ticket</button></h2>
+      <div id="s1" class="accordion-collapse collapse show" data-bs-parent="#support-accordion"><div class="accordion-body">Tickets are created only after the payment is verified. On the checkout page, choose MTN Mobile Money, Airtel Money, Zamtel Money or Card and confirm the payment before the reservation time runs out. A failed or pending payment does not produce a valid ticket.</div></div>
+    </div>
+    <div class="accordion-item">
+      <h2 class="accordion-header"><button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#s2">My planner account is waiting</button></h2>
+      <div id="s2" class="accordion-collapse collapse" data-bs-parent="#support-accordion"><div class="accordion-body">New planner accounts stay pending until an administrator approves them. You can log in to see the status, but planner tools stay locked.</div></div>
+    </div>
+    <div class="accordion-item">
+      <h2 class="accordion-header"><button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#s3">An event was cancelled</button></h2>
+      <div id="s3" class="accordion-collapse collapse" data-bs-parent="#support-accordion"><div class="accordion-body">Open Payment history and submit a refund request. The request is tracked in the system. It is not marked complete until an administrator records an external confirmation.</div></div>
+    </div>
+  </div>
+  <p class="mt-3"><a class="btn btn-green" href="{{ url_for('pages.contact') }}">Contact support</a></p>
+</div>
+{% endblock %}

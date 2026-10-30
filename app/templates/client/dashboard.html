@@ -1,0 +1,215 @@
+{% extends "layouts/dashboard.html" %}
+{% from "partials/ui.html" import badge, empty %}
+{% block title %}Client dashboard · EventLink Zambia{% endblock %}
+{% block page %}
+<section class="dash-welcome">
+  <div>
+    <p class="eyebrow">Client dashboard</p>
+    <h1>Welcome back, {{ current_user.full_name }}</h1>
+    <p>Find events, keep your tickets close, and follow up on your planner requests.</p>
+  </div>
+  <div class="dash-welcome-actions">
+    <a class="btn btn-copper" href="{{ url_for('events.listing') }}"><i class="bi bi-compass" aria-hidden="true"></i> Explore events</a>
+    <a class="btn btn-outline-light" href="{{ url_for('events.planners') }}"><i class="bi bi-person-workspace" aria-hidden="true"></i> Find a planner</a>
+  </div>
+</section>
+
+<div class="stat-grid">
+  <a class="stat-card stat-card-link" href="{{ url_for('client.tickets') }}">
+    <div class="stat-icon"><i class="bi bi-ticket-perforated" aria-hidden="true"></i></div>
+    <strong>{{ stats.tickets }}</strong>
+    <span>My tickets</span>
+    <small>{{ stats.valid_tickets }} valid for entry</small>
+  </a>
+  <a class="stat-card stat-card-link" href="{{ url_for('client.tickets') }}">
+    <div class="stat-icon"><i class="bi bi-calendar-event" aria-hidden="true"></i></div>
+    <strong>{{ stats.upcoming_events }}</strong>
+    <span>Upcoming events</span>
+    <small>Events you hold valid tickets for</small>
+  </a>
+  <a class="stat-card stat-card-link" href="{{ url_for('client.bookings') }}">
+    <div class="stat-icon copper"><i class="bi bi-calendar2-check" aria-hidden="true"></i></div>
+    <strong>{{ stats.active_bookings }}</strong>
+    <span>Active planner bookings</span>
+    <small>{{ stats.pending_bookings }} awaiting a planner reply</small>
+  </a>
+  <a class="stat-card stat-card-link" href="{{ url_for('client.notifications') }}">
+    <div class="stat-icon copper"><i class="bi bi-bell" aria-hidden="true"></i></div>
+    <strong>{{ stats.unread }}</strong>
+    <span>Unread notifications</span>
+    <small>{{ "All caught up" if not stats.unread else "Open to review" }}</small>
+  </a>
+</div>
+
+{% if stats.pending_orders %}
+<div class="dash-alert" role="status">
+  <i class="bi bi-hourglass-split" aria-hidden="true"></i>
+  <span>You have {{ stats.pending_orders }} order{{ "" if stats.pending_orders == 1 else "s" }} awaiting payment. Tickets are issued only after the payment is verified.</span>
+  <a href="{{ url_for('client.payments') }}">Review payments</a>
+</div>
+{% endif %}
+
+<section class="panel dash-section">
+  <div class="panel-head">
+    <h2>Your upcoming tickets</h2>
+    {% if upcoming_tickets %}<a href="{{ url_for('client.tickets') }}">View all tickets</a>{% endif %}
+  </div>
+  {% if upcoming_tickets %}
+  <div class="mini-event-grid">
+    {% for ticket in upcoming_tickets %}
+    {% set image = ticket.event.poster_path|upload %}
+    <article class="mini-event">
+      {% if image %}
+      <img class="mini-event-poster" src="{{ url_for('static', filename=image) }}" alt="Poster for {{ ticket.event.title }}">
+      {% else %}
+      <div class="mini-event-poster poster-fallback" role="img" aria-label="No poster available"><i class="bi bi-calendar2-event"></i></div>
+      {% endif %}
+      <div class="mini-event-body">
+        <div class="mini-event-top">
+          <span class="mini-event-type"><i class="bi bi-ticket-perforated" aria-hidden="true"></i> {{ ticket.ticket_type.name }}</span>
+          {{ badge(ticket.status) }}
+        </div>
+        <h3>{{ ticket.event.title }}</h3>
+        <p class="meta"><i class="bi bi-calendar-event" aria-hidden="true"></i> {{ ticket.event.start_datetime|localdt }}</p>
+        <p class="meta"><i class="bi bi-geo-alt" aria-hidden="true"></i> {{ ticket.event.venue }}{% if ticket.event.location %}, {{ ticket.event.location }}{% endif %}</p>
+        <a class="btn btn-green btn-sm" href="{{ url_for('client.ticket_detail', ticket_id=ticket.id) }}">View ticket</a>
+      </div>
+    </article>
+    {% endfor %}
+  </div>
+  {% else %}
+    {{ empty("ticket-perforated", "No upcoming tickets", "Tickets appear here once your payment is verified.", url_for('events.listing'), "Browse events") }}
+  {% endif %}
+</section>
+
+<section class="panel dash-section">
+  <div class="panel-head">
+    <h2>Discover events</h2>
+    <a href="{{ url_for('events.listing') }}">See all events</a>
+  </div>
+  {% if discover %}
+  <div class="mini-event-grid">
+    {% for card in discover %}
+    {% set event = card.event %}
+    {% set image = event.poster_path|upload %}
+    <article class="mini-event">
+      {% if image %}
+      <img class="mini-event-poster" src="{{ url_for('static', filename=image) }}" alt="Poster for {{ event.title }}">
+      {% else %}
+      <div class="mini-event-poster poster-fallback" role="img" aria-label="No poster available"><i class="bi bi-calendar2-event"></i></div>
+      {% endif %}
+      <div class="mini-event-body">
+        <div class="mini-event-top">
+          <span class="mini-event-type">{{ event.category.name }}</span>
+          {{ badge(card.availability) }}
+        </div>
+        <h3><a href="{{ url_for('events.detail', event_id=event.id) }}">{{ event.title }}</a></h3>
+        <p class="meta"><i class="bi bi-calendar-event" aria-hidden="true"></i> {{ event.start_datetime|localdt }}</p>
+        <p class="meta"><i class="bi bi-geo-alt" aria-hidden="true"></i> {{ event.venue }}{% if event.location %}, {{ event.location }}{% endif %}</p>
+        {% if card.min_price is not none %}
+        <p class="price mb-1">{% if card.min_price == card.max_price %}{{ card.min_price|zmw }}{% else %}From {{ card.min_price|zmw }}{% endif %}</p>
+        <p class="mini-event-tiers">{{ card.ticket_names|join(" · ") }}</p>
+        {% endif %}
+        <a class="btn btn-sm {{ 'btn-copper' if card.availability == 'available' else 'btn-outline-success' }}" href="{{ url_for('events.detail', event_id=event.id) }}">{{ "Get tickets" if card.availability == "available" else "View event" }}</a>
+      </div>
+    </article>
+    {% endfor %}
+  </div>
+  {% else %}
+    {{ empty("calendar2-event", "No upcoming public events", "Approved events will appear here as soon as organisers publish them.") }}
+  {% endif %}
+</section>
+
+<div class="row g-4 dash-section">
+  <div class="col-xl-6">
+    <section class="panel h-100">
+      <div class="panel-head">
+        <h2>Recent orders</h2>
+        {% if orders %}<a href="{{ url_for('client.payments') }}">Payment history</a>{% endif %}
+      </div>
+      {% if orders %}
+      <ul class="list-rows">
+        {% for order in orders %}
+        <li>
+          <div class="row-main">
+            <a href="{{ url_for('payments.show', order_reference=order.order_reference) }}">{{ order.event.title }}</a>
+            <span>{{ order.order_reference }} · {{ order.created_at|localdate }} · {{ order.total_amount|zmw }}</span>
+          </div>
+          {{ badge(order.order_status) }}
+        </li>
+        {% endfor %}
+      </ul>
+      {% else %}
+        {{ empty("bag", "No orders yet", "Choose an event and ticket type to place your first order.", url_for('events.listing'), "Browse events") }}
+      {% endif %}
+    </section>
+  </div>
+  <div class="col-xl-6">
+    <section class="panel h-100">
+      <div class="panel-head">
+        <h2>Planner requests</h2>
+        {% if bookings %}<a href="{{ url_for('client.bookings') }}">All bookings</a>{% endif %}
+      </div>
+      {% if bookings %}
+      <ul class="list-rows">
+        {% for booking in bookings %}
+        {% set quote = booking.quotations[-1] if booking.quotations else None %}
+        <li>
+          <div class="row-main">
+            <a href="{{ url_for('client.booking_detail', booking_id=booking.id) }}">{{ booking.event_type }}</a>
+            <span>{{ booking.planner.business_name }} · event {{ booking.event_date.strftime('%d %b %Y') }} · requested {{ booking.created_at|localdate }}</span>
+            <span>Quotation: {% if quote %}{{ quote.amount|zmw }} ({{ quote.status|replace('_', ' ') }}){% else %}not received yet{% endif %}</span>
+          </div>
+          {{ badge(booking.status) }}
+        </li>
+        {% endfor %}
+      </ul>
+      {% else %}
+        {{ empty("person-workspace", "No planner requests", "Find a verified planner and send a booking request.", url_for('events.planners'), "Find a planner") }}
+      {% endif %}
+    </section>
+  </div>
+</div>
+
+<section class="panel dash-section">
+  <div class="panel-head">
+    <h2>Recent activity</h2>
+    <a href="{{ url_for('client.notifications') }}">All notifications</a>
+  </div>
+  {% if activity %}
+  <ol class="activity-feed">
+    {% for row in activity %}
+    {% set item = row.item %}
+    <li class="activity-item">
+      {% if row.kind == "order" %}
+        <span class="activity-icon"><i class="bi bi-bag" aria-hidden="true"></i></span>
+        <div class="activity-text">
+          <a href="{{ url_for('payments.show', order_reference=item.order_reference) }}">Order {{ item.order_reference }} placed</a>
+          <span>{{ item.event.title }} · {{ item.total_amount|zmw }}</span>
+        </div>
+        {{ badge(item.order_status) }}
+      {% elif row.kind == "booking" %}
+        <span class="activity-icon copper"><i class="bi bi-person-workspace" aria-hidden="true"></i></span>
+        <div class="activity-text">
+          <a href="{{ url_for('client.booking_detail', booking_id=item.id) }}">Planner request sent</a>
+          <span>{{ item.event_type }} with {{ item.planner.business_name }}</span>
+        </div>
+        {{ badge(item.status) }}
+      {% else %}
+        {% set link = safe_link(item.link) %}
+        <span class="activity-icon{{ ' unread' if not item.is_read }}"><i class="bi bi-bell" aria-hidden="true"></i></span>
+        <div class="activity-text">
+          {% if link %}<a href="{{ link }}">{{ item.title }}</a>{% else %}<strong>{{ item.title }}</strong>{% endif %}
+          <span>{{ item.message|truncate(120) }}</span>
+        </div>
+        {% if not item.is_read %}<span class="status status-new"><i class="bi bi-envelope-fill" aria-hidden="true"></i> Unread</span>{% endif %}
+      {% endif %}
+      <time class="activity-time">{{ row.when|localdt }}</time>
+    </li>
+    {% endfor %}
+  </ol>
+  {% else %}
+    {{ empty("clock-history", "No activity yet", "Orders, planner requests, and notifications will appear here.") }}
+  {% endif %}
+</section>
+{% endblock %}

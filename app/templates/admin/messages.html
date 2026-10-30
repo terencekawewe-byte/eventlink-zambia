@@ -1,0 +1,63 @@
+{% extends "layouts/dashboard.html" %}
+{% from "partials/ui.html" import empty, pager %}
+{% block title %}Messages · EventLink Zambia{% endblock %}
+{% block page %}
+<div class="inbox-head">
+  <div>
+    <p class="eyebrow">Administration</p>
+    <h1>Contact messages</h1>
+    <p class="section-sub">Everything visitors and users send from the Contact us page arrives here.</p>
+  </div>
+  <a class="btn btn-pill" href="{{ url_for('admin.dashboard') }}"><i class="bi bi-arrow-left" aria-hidden="true"></i> Dashboard</a>
+</div>
+
+<nav class="inbox-tabs" aria-label="Filter messages">
+  <a href="{{ url_for('admin.messages', q=term or None) }}" {% if not status %}aria-current="page"{% endif %}>All <span>{{ counts.all }}</span></a>
+  <a href="{{ url_for('admin.messages', status='new', q=term or None) }}" {% if status == 'new' %}aria-current="page"{% endif %}>New <span>{{ counts.new }}</span></a>
+  <a href="{{ url_for('admin.messages', status='reviewed', q=term or None) }}" {% if status == 'reviewed' %}aria-current="page"{% endif %}>Reviewed <span>{{ counts.reviewed }}</span></a>
+  <form class="inbox-search" method="get" role="search">
+    {% if status %}<input type="hidden" name="status" value="{{ status }}">{% endif %}
+    <label class="visually-hidden" for="q">Search messages</label>
+    <input class="form-control" id="q" name="q" value="{{ term }}" placeholder="Search name, email, or subject">
+    <button class="btn btn-green" type="submit" aria-label="Search"><i class="bi bi-search"></i></button>
+  </form>
+</nav>
+
+{% if result["items"] %}
+<div class="inbox-list">
+  {% for message in result["items"] %}
+  <article class="inbox-card {% if message.status == 'new' %}inbox-card-new{% endif %}" id="message-{{ message.id }}">
+    <header class="inbox-card-head">
+      <span class="inbox-avatar" aria-hidden="true">{{ message.name[:1]|upper }}</span>
+      <div class="inbox-sender">
+        <strong>{{ message.name }}</strong>
+        <a href="mailto:{{ message.email }}">{{ message.email }}</a>
+      </div>
+      <div class="inbox-meta">
+        {% if message.status == 'new' %}<span class="status status-pending">New</span>{% else %}<span class="status status-published">Reviewed</span>{% endif %}
+        <time>{{ message.created_at|localdt }}</time>
+      </div>
+    </header>
+    <h2 class="inbox-subject">{{ message.subject }}</h2>
+    <p class="inbox-body">{{ message.message }}</p>
+    <footer class="inbox-actions">
+      <a class="btn btn-green btn-sm" href="mailto:{{ message.email }}?subject={{ ('Re: ' ~ message.subject)|urlencode }}"><i class="bi bi-reply" aria-hidden="true"></i> Reply by email</a>
+      <form method="post" action="{{ url_for('admin.contact_status', message_id=message.id) }}">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        {% if message.status == 'new' %}
+        <input type="hidden" name="status" value="reviewed">
+        <button class="btn btn-outline-secondary btn-sm" type="submit"><i class="bi bi-check2" aria-hidden="true"></i> Mark reviewed</button>
+        {% else %}
+        <input type="hidden" name="status" value="new">
+        <button class="btn btn-outline-secondary btn-sm" type="submit"><i class="bi bi-envelope" aria-hidden="true"></i> Mark as new</button>
+        {% endif %}
+      </form>
+    </footer>
+  </article>
+  {% endfor %}
+</div>
+{{ pager(result) }}
+{% else %}
+{{ empty("inbox", "No messages here", "Messages sent from the Contact us page will appear in this inbox.") }}
+{% endif %}
+{% endblock %}

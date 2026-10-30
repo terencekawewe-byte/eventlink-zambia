@@ -1,0 +1,100 @@
+{% macro item(endpoint, icon, label, also=(), count=0) -%}
+{% set active = request.endpoint == endpoint or request.endpoint in also %}
+<li>
+  <a class="dash-link{% if active %} active{% endif %}" href="{{ url_for(endpoint) }}"{% if active %} aria-current="page"{% endif %}>
+    <i class="bi bi-{{ icon }}" aria-hidden="true"></i>
+    <span class="dash-link-label">{{ label }}</span>
+    {% if count %}<span class="dash-count" aria-label="{{ count }} new">{{ count }}</span>{% endif %}
+  </a>
+</li>
+{%- endmacro %}
+
+{% set role = current_user.role %}
+{% set profile = current_user.planner_profile if role == "planner" else None %}
+{% set planner_approved = profile is not none and profile.approval_status == "approved" %}
+
+<div class="dash-panel">
+  <div class="dash-user">
+    <span class="dash-avatar" aria-hidden="true">{{ current_user.full_name[:1]|upper }}</span>
+    <div class="dash-user-text">
+      <strong>{{ profile.business_name if profile else current_user.full_name }}</strong>
+      <span>{% if role == "admin" %}Administrator{% elif role == "planner" %}Event planner{% else %}Client account{% endif %}</span>
+    </div>
+  </div>
+
+  <nav class="dash-menu" aria-label="Dashboard navigation">
+    {% if role == "client" %}
+      <p class="dash-menu-label">Overview</p>
+      <ul>
+        {{ item("client.dashboard", "grid-1x2", "Dashboard") }}
+        {{ item("client.tickets", "ticket-perforated", "My Tickets", also=("client.ticket_detail",)) }}
+        {{ item("client.bookings", "calendar2-check", "My Bookings", also=("client.booking_detail", "client.booking_new")) }}
+        {{ item("client.payments", "credit-card", "Payments") }}
+        {{ item("client.notifications", "bell", "Notifications", count=unread_notifications) }}
+      </ul>
+      <p class="dash-menu-label">Account</p>
+      <ul>
+        {{ item("client.profile", "person-circle", "My Profile") }}
+        {{ item("auth.change_password", "shield-lock", "Change Password") }}
+      </ul>
+    {% elif role == "planner" and planner_approved %}
+      <p class="dash-menu-label">Overview</p>
+      <ul>
+        {{ item("planner.dashboard", "grid-1x2", "Dashboard") }}
+        {{ item("planner.bookings", "inbox", "Booking Requests", also=("planner.booking_detail", "planner.quotation_create")) }}
+        {{ item("planner.quotations", "receipt", "Quotations") }}
+        {{ item("planner.my_events", "calendar-event", "My Events", also=("planner.create_event", "planner.edit_event")) }}
+        {{ item("planner.services", "briefcase", "My Services") }}
+        {{ item("planner.reports", "bar-chart-line", "Reports") }}
+        {{ item("planner.notifications", "bell", "Notifications", count=unread_notifications) }}
+      </ul>
+      <p class="dash-menu-label">Account</p>
+      <ul>
+        {{ item("planner.profile", "person-badge", "My Profile", also=("planner.edit_profile",)) }}
+        {{ item("auth.change_password", "shield-lock", "Change Password") }}
+      </ul>
+    {% elif role == "planner" %}
+      <p class="dash-menu-label">Application</p>
+      <ul>
+        {{ item("planner.pending", "hourglass-split", "Application Status") }}
+        {{ item("auth.change_password", "shield-lock", "Change Password") }}
+      </ul>
+    {% elif role == "admin" %}
+      <p class="dash-menu-label">Overview</p>
+      <ul>
+        {{ item("admin.dashboard", "speedometer2", "Dashboard") }}
+        {{ item("admin.users", "people", "User Management", also=("admin.user_detail",)) }}
+        {{ item("admin.planners", "patch-check", "Planner Verification", also=("admin.planner_detail",)) }}
+        {{ item("admin.events", "calendar-check", "Event Approval", also=("admin.event_detail",)) }}
+      </ul>
+      <p class="dash-menu-label">Sales</p>
+      <ul>
+        {{ item("admin.ticket_sales", "ticket-detailed", "Ticket Sales") }}
+        {{ item("admin.orders", "bag-check", "Orders", also=("admin.order_detail",)) }}
+        {{ item("admin.payments", "credit-card", "Payment Records") }}
+        {{ item("admin.bookings", "calendar2-check", "Planner Bookings") }}
+        {{ item("admin.reports", "bar-chart-line", "Reports", also=("admin.planner_report",)) }}
+      </ul>
+      <p class="dash-menu-label">System</p>
+      <ul>
+        {{ item("admin.messages", "envelope", "Messages", count=admin_new_messages) }}
+        {{ item("admin.notifications", "bell", "Notifications", count=unread_notifications) }}
+        {{ item("admin.audit_logs", "journal-text", "Audit Log") }}
+        {{ item("admin.settings", "gear", "Settings") }}
+      </ul>
+      <p class="dash-menu-label">Account</p>
+      <ul>
+        {{ item("admin.profile", "person-circle", "My Profile") }}
+        {{ item("auth.change_password", "shield-lock", "Change Password") }}
+      </ul>
+    {% endif %}
+  </nav>
+
+  <form class="dash-logout" method="post" action="{{ url_for('auth.logout') }}">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <button class="dash-link" type="submit">
+      <i class="bi bi-box-arrow-right" aria-hidden="true"></i>
+      <span class="dash-link-label">Log out</span>
+    </button>
+  </form>
+</div>
