@@ -1,0 +1,126 @@
+{% extends "layouts/dashboard.html" %}
+{% from "partials/ui.html" import badge, csrf, empty %}
+{% block title %}Gate attendants · EventLink Zambia{% endblock %}
+{% block page %}
+<div class="dash-head">
+  <div>
+    <h1>Gate attendants</h1>
+    <p>Staff who scan tickets at the entrance of your events. They can only open the scanner for events you assign them to.</p>
+  </div>
+  <a class="btn btn-outline-secondary" href="{{ url_for('planner.scan_activity') }}"><i class="bi bi-qr-code-scan" aria-hidden="true"></i> Scan activity</a>
+</div>
+
+{% if credentials %}
+<section class="panel panel-focus dash-section" role="alert" aria-labelledby="credentials-heading">
+  <h2 id="credentials-heading"><i class="bi bi-key-fill" aria-hidden="true"></i> {{ "Account created" if credentials.new else "Password reset" }} for {{ credentials.name }}</h2>
+  <p>Give these login details to {{ credentials.name }} in person. The temporary password is shown only once and must be changed at first login.</p>
+  <dl class="metric-list">
+    <div><dt>Login email</dt><dd>{{ credentials.email }}</dd></div>
+    <div><dt>Temporary password</dt><dd><span class="temp-password">{{ credentials.password }}</span></dd></div>
+    <div><dt>Login page</dt><dd>{{ url_for('auth.login', _external=True) }}</dd></div>
+  </dl>
+</section>
+{% endif %}
+
+<div class="row g-4">
+  <div class="col-xl-4">
+    <form class="panel needs-check" method="post" action="{{ url_for('planner.attendants') }}" novalidate>
+      {{ csrf() }}
+      <h2>Add a gate attendant</h2>
+      <div class="mb-3">
+        <label class="form-label" for="full_name">Full name</label>
+        <input class="form-control" id="full_name" name="full_name" value="{{ form.get('full_name', '') }}" required maxlength="120" autocomplete="off">
+      </div>
+      <div class="mb-3">
+        <label class="form-label" for="phone">Phone number</label>
+        <input class="form-control" id="phone" name="phone" value="{{ form.get('phone', '') }}" required maxlength="20" inputmode="tel" placeholder="0971234567" autocomplete="off">
+      </div>
+      <div class="mb-3">
+        <label class="form-label" for="email">Email address (used to log in)</label>
+        <input class="form-control" id="email" name="email" type="email" value="{{ form.get('email', '') }}" required maxlength="120" autocomplete="off">
+      </div>
+      <div class="mb-3">
+        <label class="form-label" for="event_id">Assign to event (optional)</label>
+        <select class="form-select" id="event_id" name="event_id">
+          <option value="">Assign later</option>
+          {% for event in events %}<option value="{{ event.id }}" {% if form.get('event_id') == event.id|string %}selected{% endif %}>{{ event.title }} · {{ event.start_datetime.strftime('%d %b %Y') }}</option>{% endfor %}
+        </select>
+        {% if not events %}<p class="form-text">You can assign attendants once one of your events is approved and published.</p>{% endif %}
+      </div>
+      <button class="btn btn-green" type="submit"><i class="bi bi-person-plus" aria-hidden="true"></i> Create attendant account</button>
+      <p class="form-text mt-2">A temporary password is generated for you to hand over. Gate attendants cannot see sales, payments, users or event settings.</p>
+    </form>
+  </div>
+
+  <div class="col-xl-8">
+    <section class="panel" aria-labelledby="list-heading">
+      <div class="panel-head">
+        <h2 id="list-heading">Your attendants</h2>
+        <span class="panel-note">{{ attendants|length }} account{{ '' if attendants|length == 1 else 's' }}</span>
+      </div>
+      {% for attendant in attendants %}
+      {% set active_ids = attendant.active_assignments|map(attribute="event_id")|list %}
+      <article class="ticket-option" id="attendant-{{ attendant.id }}">
+        <div class="d-flex flex-wrap justify-content-between align-items-start gap-2">
+          <div>
+            <strong>{{ attendant.user.full_name }}</strong>
+            <div class="text-muted small">{{ attendant.user.email }} · {{ attendant.user.phone }}</div>
+            <div class="text-muted small">Added {{ attendant.created_at|localdate }}{% if attendant.must_change_password %} · has not set their own password yet{% endif %}</div>
+          </div>
+          <div class="d-flex flex-wrap gap-1">
+            {{ badge(attendant.status) }}
+            {% if attendant.user.account_status != "active" %}{{ badge("suspended", "Suspended by EventLink") }}{% endif %}
+          </div>
+        </div>
+
+        <p class="small fw-semibold mt-3 mb-1">Events they can scan</p>
+        {% if attendant.active_assignments %}
+        <ul class="attendant-assignments">
+          {% for assignment in attendant.active_assignments %}
+          <li>
+            <i class="bi bi-calendar-event" aria-hidden="true"></i> {{ assignment.event.title }}
+            <form method="post" action="{{ url_for('planner.attendant_revoke', attendant_id=attendant.id, assignment_id=assignment.id) }}" data-confirm="Remove {{ attendant.user.full_name }}'s access to {{ assignment.event.title }}?">
+              {{ csrf() }}
+              <button type="submit" title="Remove access to {{ assignment.event.title }}" aria-label="Remove access to {{ assignment.event.title }}"><i class="bi bi-x-circle-fill" aria-hidden="true"></i></button>
+            </form>
+          </li>
+          {% endfor %}
+        </ul>
+        {% else %}
+        <p class="text-muted small mb-0">Not assigned to any event.</p>
+        {% endif %}
+
+        <div class="d-flex flex-wrap gap-2 mt-3 align-items-end">
+          {% set open_events = events|rejectattr("id", "in", active_ids)|list %}
+          {% if open_events and attendant.status == "active" %}
+          <form class="d-flex gap-2 flex-wrap" method="post" action="{{ url_for('planner.attendant_assign', attendant_id=attendant.id) }}">
+            {{ csrf() }}
+            <label class="visually-hidden" for="assign-{{ attendant.id }}">Event to assign</label>
+            <select class="form-select form-select-sm w-auto" id="assign-{{ attendant.id }}" name="event_id" required>
+              {% for event in open_events %}<option value="{{ event.id }}">{{ event.title }} · {{ event.start_datetime.strftime('%d %b %Y') }}</option>{% endfor %}
+            </select>
+            <button class="btn btn-sm btn-green" type="submit"><i class="bi bi-calendar-plus" aria-hidden="true"></i> Assign</button>
+          </form>
+          {% endif %}
+          <form method="post" action="{{ url_for('planner.attendant_status', attendant_id=attendant.id) }}" data-confirm="{{ ('Deactivate ' ~ attendant.user.full_name ~ '? They will be logged out and unable to scan tickets.') if attendant.status == 'active' else ('Reactivate ' ~ attendant.user.full_name ~ '?') }}">
+            {{ csrf() }}
+            <input type="hidden" name="status" value="{{ 'inactive' if attendant.status == 'active' else 'active' }}">
+            {% if attendant.status == "active" %}
+            <button class="btn btn-sm btn-outline-danger" type="submit"><i class="bi bi-pause-circle" aria-hidden="true"></i> Deactivate</button>
+            {% else %}
+            <button class="btn btn-sm btn-outline-success" type="submit"><i class="bi bi-play-circle" aria-hidden="true"></i> Reactivate</button>
+            {% endif %}
+          </form>
+          <form method="post" action="{{ url_for('planner.attendant_reset_password', attendant_id=attendant.id) }}" data-confirm="Create a new temporary password for {{ attendant.user.full_name }}? Their current password will stop working.">
+            {{ csrf() }}
+            <button class="btn btn-sm btn-outline-secondary" type="submit"><i class="bi bi-key" aria-hidden="true"></i> Reset password</button>
+          </form>
+        </div>
+      </article>
+      {% else %}
+        {{ empty("person-badge", "No gate attendants yet", "Add the people who will scan tickets at your event entrance. Each one gets their own login.") }}
+      {% endfor %}
+    </section>
+  </div>
+</div>
+{% endblock %}

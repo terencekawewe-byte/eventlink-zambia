@@ -542,9 +542,10 @@ a.contact-card:hover { transform: translateY(-2px); border-color: #cfe3da; color
 .status i { font-size: .75rem; }
 .status-published, .status-approved, .status-successful, .status-paid, .status-valid, .status-completed, .status-accepted, .status-active, .status-available, .status-verified, .status-reviewed, .status-selling_fast { background: #d9f3e8; color: #08593c; }
 .status-pending, .status-in_progress, .status-requested, .status-not_open, .status-new { background: #fff1d6; color: #8a5a10; }
-.status-rejected, .status-failed, .status-cancelled, .status-suspended, .status-refunded, .status-declined, .status-sold_out { background: #fde2e0; color: #8f2a22; }
-.status-draft, .status-unpublished, .status-closed, .status-ended, .status-unavailable, .status-inactive, .status-redeemed { background: #eceff1; color: #3d4a52; }
+.status-rejected, .status-failed, .status-cancelled, .status-suspended, .status-refunded, .status-declined, .status-sold_out, .status-invalid { background: #fde2e0; color: #8f2a22; }
+.status-draft, .status-unpublished, .status-closed, .status-ended, .status-unavailable, .status-inactive, .status-redeemed, .status-revoked { background: #eceff1; color: #3d4a52; }
 .status-low_sales { background: #f7e7da; color: #8a4a1c; }
+.status-already_used { background: #fde4cc; color: #8a3c08; }
 
 .filters { background: white; border: 1px solid var(--line); border-radius: 1rem; padding: 1rem; margin-bottom: 1rem; }
 .ticket-option { border: 1px solid var(--line); border-radius: .8rem; padding: .8rem; margin-bottom: .6rem; background: white; }

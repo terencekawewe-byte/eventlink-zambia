@@ -98,6 +98,28 @@ Open http://127.0.0.1:5000
 
 `FLASK_DEBUG=1` is for local development only. Leave it unset, or set it to `0`, for any shared or production run.
 
+## Ticket scanning on a local network
+
+Planners create gate attendant accounts under **Gate Attendants** in the planner dashboard and assign them to events. Attendants log in on a phone, open **Scan Ticket**, and point the camera at the ticket's QR code. The server decides whether each ticket is valid, already used or invalid, and a ticket can be admitted only once.
+
+To run the gate from one laptop with phones on the same Wi-Fi (no internet needed; the scanner library is served from `app/static/vendor`):
+
+1. Find the laptop's Wi-Fi address with `ipconfig` (for example `192.168.1.20`).
+2. Phone browsers only allow the camera on HTTPS pages. Create a certificate for that address with [mkcert](https://github.com/FiloSottile/mkcert):
+
+   ```powershell
+   mkcert -install
+   mkdir instance\certs
+   mkcert -cert-file instance\certs\eventlink.pem -key-file instance\certs\eventlink-key.pem 192.168.1.20 localhost 127.0.0.1
+   ```
+
+   Install mkcert's root certificate (`mkcert -CAROOT` shows where it is) on each phone so the browser trusts it. On iPhone, also turn it on under Settings, General, About, Certificate Trust Settings.
+3. In `.env` set `HOST=0.0.0.0`, `SSL_CERT_FILE=instance/certs/eventlink.pem`, `SSL_KEY_FILE=instance/certs/eventlink-key.pem` and `SESSION_COOKIE_SECURE=1`, keep `FLASK_DEBUG=0`, then start `python run.py`.
+4. Allow Python through Windows Defender Firewall on **private** networks when Windows asks (or add an inbound rule for TCP port 5000).
+5. On each phone open `https://192.168.1.20:5000`, log in as the gate attendant and allow camera access when asked.
+
+If HTTPS is not set up, attendants can still type the ticket reference printed under the QR code; the scan page explains why the camera is unavailable.
+
 ## Tests
 
 ```powershell

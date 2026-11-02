@@ -1,0 +1,115 @@
+{% from "partials/ui.html" import badge %}
+
+{% macro scan_ticket(scan) -%}
+{% if scan.shows_ticket %}{{ scan.ticket.ticket_code }}{% elif scan.attempted_code %}<span class="text-muted">{{ scan.attempted_code }}</span>{% else %}<span class="text-muted">No code</span>{% endif %}
+{%- endmacro %}
+
+{% macro scan_list(scans) -%}
+<ul class="list-rows scan-rows">
+  {% for scan in scans %}
+  <li>
+    <div class="row-main">
+      <strong class="scan-code">{{ scan_ticket(scan) }}</strong>
+      <span>{{ scan.created_at|localdt("%d %b, %H:%M:%S") }}{% if scan.shows_ticket %} · {{ scan.ticket.ticket_type.name }}{% endif %}{% if scan.reason_text %} · {{ scan.reason_text }}{% endif %}</span>
+    </div>
+    {{ badge(scan.result, scan.result_label) }}
+  </li>
+  {% endfor %}
+</ul>
+{%- endmacro %}
+
+{% macro scan_filters(endpoint, events, filters, results, actors) -%}
+<form class="filters" method="get" action="{{ url_for(endpoint) }}">
+  <div class="row g-2">
+    <div class="col-md-4"><label class="form-label" for="event_id">Event</label>
+      <select class="form-select" id="event_id" name="event_id">
+        <option value="">All events</option>
+        {% for event in events %}<option value="{{ event.id }}" {% if filters.event_id == event.id %}selected{% endif %}>{{ event.title }} · {{ event.start_datetime.strftime('%d %b %Y') }}</option>{% endfor %}
+      </select>
+    </div>
+    <div class="col-6 col-md-2"><label class="form-label" for="result">Result</label>
+      <select class="form-select" id="result" name="result">
+        <option value="">All results</option>
+        {% for value, label in results.items() %}<option value="{{ value }}" {% if filters.result == value %}selected{% endif %}>{{ label }}</option>{% endfor %}
+      </select>
+    </div>
+    <div class="col-6 col-md-3"><label class="form-label" for="actor_id">Checked by</label>
+      <select class="form-select" id="actor_id" name="actor_id">
+        <option value="">Anyone</option>
+        {% for actor in actors %}<option value="{{ actor.id }}" {% if filters.actor_id == actor.id %}selected{% endif %}>{{ actor.full_name }}</option>{% endfor %}
+      </select>
+    </div>
+    <div class="col-6 col-md-3 col-lg-3"><label class="form-label" for="date_from">From</label><input class="form-control" type="date" id="date_from" name="date_from" value="{{ filters.date_from }}"></div>
+    <div class="col-6 col-md-3 col-lg-3"><label class="form-label" for="date_to">To</label><input class="form-control" type="date" id="date_to" name="date_to" value="{{ filters.date_to }}"></div>
+    <div class="col-md-3 d-flex align-items-end gap-2">
+      <button class="btn btn-green" type="submit"><i class="bi bi-funnel" aria-hidden="true"></i> Filter</button>
+      {% if request.args %}<a class="btn btn-outline-secondary" href="{{ url_for(endpoint) }}">Clear</a>{% endif %}
+    </div>
+  </div>
+</form>
+{%- endmacro %}
+
+{% macro scan_summary(counts) -%}
+<div class="gate-stats">
+  <div class="gate-stat"><strong>{{ counts.values()|sum }}</strong><span>Scans</span></div>
+  <div class="gate-stat gate-stat-ok"><strong>{{ counts.valid }}</strong><span>Valid, entry allowed</span></div>
+  <div class="gate-stat"><strong>{{ counts.already_used }}</strong><span>Already used</span></div>
+  <div class="gate-stat gate-stat-bad"><strong>{{ counts.invalid }}</strong><span>Invalid</span></div>
+</div>
+{%- endmacro %}
+
+{% macro suspicious_panel(rows) -%}
+<section class="panel dash-section" aria-labelledby="repeat-heading">
+  <div class="panel-head">
+    <h2 id="repeat-heading"><i class="bi bi-exclamation-triangle" aria-hidden="true"></i> Repeated attempts on used tickets</h2>
+    <span class="panel-note">Last 30 days, within these filters</span>
+  </div>
+  {% if rows %}
+  <div class="table-responsive">
+    <table class="table align-middle mb-0">
+      <thead><tr><th>Ticket</th><th>Event</th><th>Holder</th><th>First entry</th><th>Rejected repeats</th><th>Checked by</th><th>Last attempt</th></tr></thead>
+      <tbody>
+        {% for row in rows %}
+        <tr>
+          <td class="scan-code">{{ row.ticket.ticket_code }}</td>
+          <td>{{ row.ticket.event.title }}</td>
+          <td>{{ row.ticket.client.full_name }}</td>
+          <td>{{ row.ticket.redeemed_at|localdt if row.ticket.redeemed_at else "—" }}</td>
+          <td><strong>{{ row.attempts }}</strong></td>
+          <td>{{ row.attendants }} staff</td>
+          <td>{{ row.last_attempt|localdt }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% else %}
+  <p class="text-muted mb-0">No ticket has been presented again after entry more than once.</p>
+  {% endif %}
+</section>
+{%- endmacro %}
+
+{% macro scan_table(scans, show_event=True, show_actor=True) -%}
+<div class="table-responsive">
+  <table class="table align-middle mb-0">
+    <thead>
+      <tr>
+        <th>Time</th><th>Ticket</th>{% if show_event %}<th>Event</th>{% endif %}{% if show_actor %}<th>Checked by</th>{% endif %}<th>Result</th><th>Reason</th><th>Method</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for scan in scans %}
+      <tr>
+        <td>{{ scan.created_at|localdt("%d %b %Y, %H:%M:%S") }}</td>
+        <td class="scan-code">{{ scan_ticket(scan) }}{% if scan.shows_ticket %}<br><small class="text-muted">{{ scan.ticket.ticket_type.name }} · {{ scan.ticket.client.full_name }}</small>{% endif %}</td>
+        {% if show_event %}<td>{{ scan.event.title if scan.event else "Unknown event" }}</td>{% endif %}
+        {% if show_actor %}<td>{{ scan.actor.full_name }}<br><small class="text-muted">{{ {"attendant": "Gate attendant", "planner": "Planner", "admin": "Administrator"}.get(scan.actor.role, scan.actor.role) }}</small></td>{% endif %}
+        <td>{{ badge(scan.result, scan.result_label) }}</td>
+        <td>{{ scan.reason_text or "—" }}</td>
+        <td>{{ scan.method_label or "—" }}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{%- endmacro %}

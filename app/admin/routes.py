@@ -9,10 +9,12 @@ from sqlalchemy.orm import joinedload
 
 from app.extensions import db
 from app.models import (
+    AttendantAssignment,
     AuditLog,
     ContactMessage,
     Event,
     EventCategory,
+    GateAttendant,
     Order,
     Payment,
     PlannerBooking,
@@ -20,12 +22,14 @@ from app.models import (
     PlannerProfile,
     Refund,
     Ticket,
+    TicketRedemption,
     TicketType,
     User,
 )
-from app.models.database import PAYOUT_METHODS, utcnow
+from app.models.database import PAYOUT_METHODS, SCAN_RESULTS, USER_ROLES, utcnow
 from app.services.dashboard_service import admin_overview
 from app.services.event_service import validate_event_form
+from app.services.gate_service import filter_scans, repeated_scans, scan_counts
 from app.services.notification_service import list_for_user, mark_all_read, mark_read, notify
 from app.services.report_export import EXPORT_FORMATS, export_response, planner_document, platform_document
 from app.services.report_service import (
@@ -92,8 +96,10 @@ def users():
                 User.phone.ilike(like, escape="\\"),
             )
         )
-    if role in {"client", "planner", "admin"}:
+    if role in USER_ROLES:
         query = query.filter_by(role=role)
+    else:
+        role = ""
     status = request.args.get("status") or ""
     if status in {"active", "suspended"}:
         query = query.filter_by(account_status=status)
@@ -101,7 +107,7 @@ def users():
         status = ""
     counts = dict(db.session.query(User.account_status, func.count(User.id)).group_by(User.account_status).all())
     result = paginate(query.order_by(User.created_at.desc()), page_arg(), 15)
-    return render_template("admin/users.html", result=result, term=term, role=role, status=status, counts=counts)
+    return render_template("admin/users.html", result=result, term=term, role=role, roles=USER_ROLES, status=status, counts=counts)
 
 
 @admin_bp.route("/users/<int:user_id>")
@@ -217,6 +223,99 @@ def user_reactivate(user_id):
         db.session.commit()
         flash("Account reactivated.", "success")
     return _back_to_user(user)
+
+
+@admin_bp.route("/attendants")
+@admin_required
+def attendants():
+    query = GateAttendant.query.join(User, GateAttendant.user_id == User.id)
+    term = (request.args.get("q") or "").strip()[:100]
+    if term:
+        like = f"%{escape_like(term)}%"
+        query = query.filter(
+            or_(User.full_name.ilike(like, escape="\\"), User.email.ilike(like, escape="\\"), User.phone.ilike(like, escape="\\"))
+        )
+    planner_ids = [row[0] for row in db.session.query(GateAttendant.created_by_id).distinct()]
+    planners = User.query.filter(User.id.in_(planner_ids or [0])).order_by(User.full_name).all()
+    planner_id = request.args.get("planner_id", type=int)
+    if planner_id in planner_ids:
+        query = query.filter(GateAttendant.created_by_id == planner_id)
+    else:
+        planner_id = None
+    status = request.args.get("status") or ""
+    if status in {"active", "inactive"}:
+        query = query.filter(GateAttendant.status == status)
+    else:
+        status = ""
+    result = paginate(query.order_by(GateAttendant.created_at.desc()), page_arg(), 20)
+    scan_totals = dict(
+        db.session.query(TicketRedemption.actor_id, func.count(TicketRedemption.id))
+        .filter(TicketRedemption.actor_id.in_([item.user_id for item in result["items"]] or [0]))
+        .group_by(TicketRedemption.actor_id)
+        .all()
+    )
+    return render_template(
+        "admin/attendants.html",
+        result=result,
+        term=term,
+        planners=planners,
+        planner_id=planner_id,
+        status=status,
+        scan_totals=scan_totals,
+    )
+
+
+@admin_bp.route("/attendants/<int:attendant_id>/status", methods=["POST"])
+@admin_required
+def attendant_status(attendant_id):
+    attendant = db.session.get(GateAttendant, attendant_id)
+    if attendant is None:
+        abort(404)
+    target = request.form.get("status")
+    reason = _reason()
+    if target not in {"active", "inactive"}:
+        abort(400)
+    if not reason:
+        flash("A reason between 5 and 500 characters is required.", "danger")
+    elif attendant.status == target:
+        flash("No change was needed.", "info")
+    else:
+        attendant.status = target
+        action = "attendant_activated" if target == "active" else "attendant_deactivated"
+        audit(g.user.id, action, "gate_attendant", attendant.id, reason)
+        verb = "reactivated" if target == "active" else "deactivated"
+        notify(
+            attendant.created_by_id,
+            f"Gate attendant {verb}",
+            f"EventLink {verb} the gate attendant account for {attendant.user.full_name}. Reason: {reason}",
+            "/planner/attendants",
+        )
+        db.session.commit()
+        flash(f"Gate attendant {attendant.user.full_name} {verb}.", "success")
+    return redirect(request.referrer or url_for("admin.attendants"))
+
+
+@admin_bp.route("/ticket-scans")
+@admin_required
+def ticket_scans():
+    events = Event.query.filter(Event.approval_status == "approved").order_by(Event.start_datetime.desc()).all()
+    actor_ids = [row[0] for row in db.session.query(TicketRedemption.actor_id).distinct()]
+    actors = User.query.filter(User.id.in_(actor_ids or [0])).order_by(User.full_name).all()
+    query = TicketRedemption.query
+    query, filters, errors = filter_scans(query, request.args, [event.id for event in events], set(actor_ids))
+    for error in errors:
+        flash(error, "danger")
+    scans = paginate(query.order_by(TicketRedemption.created_at.desc(), TicketRedemption.id.desc()), page_arg(), 30)
+    return render_template(
+        "admin/ticket_scans.html",
+        scans=scans,
+        events=events,
+        actors=actors,
+        counts=scan_counts(query),
+        suspicious=repeated_scans(query),
+        filters=filters,
+        results=SCAN_RESULTS,
+    )
 
 
 @admin_bp.route("/planners")

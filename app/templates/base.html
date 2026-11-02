@@ -48,10 +48,13 @@
                 {% set nav_home_url = url_for('planner.dashboard') if nav_planner_ready else url_for('planner.pending') %}
                 {% set nav_notes_url = url_for('planner.notifications') if nav_planner_ready else url_for('planner.pending') %}
                 {% set nav_profile_url = url_for('planner.profile') if nav_planner_ready else None %}
+              {% elif nav_role == 'attendant' %}
+                {% set nav_home_url, nav_notes_url, nav_profile_url = url_for('gate.dashboard'), None, None %}
               {% else %}
                 {% set nav_home_url, nav_notes_url, nav_profile_url = url_for('client.dashboard'), url_for('client.notifications'), url_for('client.profile') %}
               {% endif %}
               <li class="nav-item"><a class="nav-link" href="{{ nav_home_url }}">{{ "Admin" if nav_role == 'admin' else "Dashboard" }}</a></li>
+              {% if nav_notes_url %}
               <li class="nav-item">
                 <a class="nav-link" href="{{ nav_notes_url }}">
                   <i class="bi bi-bell"></i>
@@ -59,6 +62,7 @@
                   <span class="visually-hidden">Notifications</span>
                 </a>
               </li>
+              {% endif %}
               <li class="nav-item dropdown">
                 <button class="nav-profile dropdown-toggle" type="button" data-bs-toggle="dropdown" aria-expanded="false">
                   <span class="nav-avatar" aria-hidden="true">{{ current_user.initials }}</span>
@@ -69,11 +73,11 @@
                   <li class="dropdown-header">
                     <strong>{{ current_user.full_name }}</strong>
                     <span>{{ current_user.email }}</span>
-                    <span class="nav-role">{{ "Administrator" if nav_role == 'admin' else ("Event planner" if nav_role == 'planner' else "Client") }}</span>
+                    <span class="nav-role">{{ {"admin": "Administrator", "planner": "Event planner", "attendant": "Gate attendant"}.get(nav_role, "Client") }}</span>
                   </li>
                   <li><a class="dropdown-item" href="{{ nav_home_url }}"><i class="bi bi-grid-1x2" aria-hidden="true"></i> Dashboard</a></li>
                   {% if nav_profile_url %}<li><a class="dropdown-item" href="{{ nav_profile_url }}"><i class="bi bi-person" aria-hidden="true"></i> My profile</a></li>{% endif %}
-                  <li><a class="dropdown-item" href="{{ nav_notes_url }}"><i class="bi bi-bell" aria-hidden="true"></i> Notifications{% if unread_notifications %} ({{ unread_notifications }}){% endif %}</a></li>
+                  {% if nav_notes_url %}<li><a class="dropdown-item" href="{{ nav_notes_url }}"><i class="bi bi-bell" aria-hidden="true"></i> Notifications{% if unread_notifications %} ({{ unread_notifications }}){% endif %}</a></li>{% endif %}
                   <li><a class="dropdown-item" href="{{ url_for('auth.change_password') }}"><i class="bi bi-key" aria-hidden="true"></i> Change password</a></li>
                   <li><hr class="dropdown-divider"></li>
                   <li>

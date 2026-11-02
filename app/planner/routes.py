@@ -642,3 +642,6 @@ def notification_read(notification_id):
 def notifications_read_all():
     mark_all_read(g.user)
     return redirect(url_for("planner.notifications"))
+
+
+from app.planner import attendants as _attendant_routes  # noqa: E402,F401  registers the gate attendant pages

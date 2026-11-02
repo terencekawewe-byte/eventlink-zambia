@@ -9,9 +9,10 @@
   "cancelled": "slash-circle", "suspended": "pause-circle-fill", "refunded": "arrow-counterclockwise",
   "sold_out": "x-octagon", "closed": "lock-fill", "ended": "flag-fill", "unavailable": "dash-circle",
   "low_sales": "graph-down-arrow", "redeemed": "door-open-fill",
-  "draft": "pencil", "unpublished": "eye-slash", "inactive": "dash-circle"
+  "draft": "pencil", "unpublished": "eye-slash", "inactive": "dash-circle",
+  "already_used": "exclamation-triangle-fill", "invalid": "x-octagon-fill", "revoked": "slash-circle"
 } %}
-{% set STATUS_LABELS = {"not_open": "Sales not open", "sold_out": "Sold out", "selling_fast": "Selling fast", "low_sales": "Low sales", "in_progress": "In progress"} %}
+{% set STATUS_LABELS = {"not_open": "Sales not open", "sold_out": "Sold out", "selling_fast": "Selling fast", "low_sales": "Low sales", "in_progress": "In progress", "already_used": "Already used"} %}
 
 {% macro badge(status, label=None) -%}
 <span class="status status-{{ status }}"><i class="bi bi-{{ STATUS_ICONS.get(status, 'circle-fill') }}" aria-hidden="true"></i> {{ label or STATUS_LABELS.get(status) or status|replace('_', ' ')|title }}</span>

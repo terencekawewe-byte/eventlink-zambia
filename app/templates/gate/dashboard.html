@@ -1,0 +1,56 @@
+{% extends "layouts/dashboard.html" %}
+{% from "partials/ui.html" import badge, empty %}
+{% from "partials/scans.html" import scan_list %}
+{% block title %}Gate dashboard · EventLink Zambia{% endblock %}
+{% block page %}
+<section class="dash-welcome">
+  <div>
+    <p class="eyebrow">Gate attendant</p>
+    <h1>{{ current_user.full_name }}</h1>
+    <p>Scan each guest's ticket. EventLink checks it and tells you whether to allow entry.</p>
+  </div>
+</section>
+
+{% if cards %}
+  {% for card in cards %}
+  {% set event = card.event %}
+  <section class="panel gate-event dash-section" aria-labelledby="event-{{ event.id }}">
+    <div class="gate-event-head">
+      <div>
+        <h2 id="event-{{ event.id }}">{{ event.title }}</h2>
+        <p class="gate-event-meta">
+          <span><i class="bi bi-calendar-event" aria-hidden="true"></i> {{ event.start_datetime.strftime('%a %d %b %Y, %H:%M') }}</span>
+          <span><i class="bi bi-geo-alt" aria-hidden="true"></i> {{ event.venue }}{% if event.location %}, {{ event.location }}{% endif %}</span>
+        </p>
+      </div>
+      {% if event.publication_status != "published" %}{{ badge(event.publication_status) }}{% endif %}
+    </div>
+    <div class="gate-stats">
+      <div class="gate-stat"><strong>{{ card.stats.expected }}</strong><span>Tickets expected</span></div>
+      <div class="gate-stat gate-stat-ok"><strong>{{ card.stats.scanned }}</strong><span>Scanned in</span></div>
+      <div class="gate-stat"><strong>{{ card.stats.remaining }}</strong><span>Not yet scanned</span></div>
+      <div class="gate-stat gate-stat-bad"><strong>{{ card.stats.rejected }}</strong><span>Rejected scans</span></div>
+    </div>
+    <a class="btn btn-green btn-lg gate-scan-button" href="{{ url_for('gate.scan', event_id=event.id) }}">
+      <i class="bi bi-qr-code-scan" aria-hidden="true"></i> Scan Ticket
+    </a>
+  </section>
+  {% endfor %}
+
+  <section class="panel dash-section" aria-labelledby="recent-heading">
+    <div class="panel-head">
+      <h2 id="recent-heading">Your recent scans</h2>
+      <a href="{{ url_for('gate.history') }}">Full history</a>
+    </div>
+    {% if history %}
+      {{ scan_list(history) }}
+    {% else %}
+      {{ empty("clock-history", "No scans yet", "Tickets you scan will be listed here.") }}
+    {% endif %}
+  </section>
+{% else %}
+  <section class="panel dash-section">
+    {{ empty("calendar-x", "No events assigned", "You have not been assigned to an event yet. Ask the event planner to assign you before guests arrive.") }}
+  </section>
+{% endif %}
+{% endblock %}

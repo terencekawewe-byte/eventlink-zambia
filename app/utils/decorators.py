@@ -61,6 +61,21 @@ def approved_planner_required(view):
     return wrapped
 
 
+def attendant_required(view):
+    @wraps(view)
+    def wrapped(*args, **kwargs):
+        if g.user is None:
+            return _login_redirect()
+        if g.user.role != "attendant" or not g.user.is_active_attendant:
+            abort(403)
+        if g.user.gate_profile.must_change_password:
+            flash("Choose a new password before you start scanning tickets.", "warning")
+            return redirect(url_for("auth.change_password"))
+        return view(*args, **kwargs)
+
+    return wrapped
+
+
 def planner_account_required(view):
     @wraps(view)
     def wrapped(*args, **kwargs):

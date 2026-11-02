@@ -1,0 +1,28 @@
+{% extends "layouts/dashboard.html" %}
+{% from "partials/ui.html" import empty, pager %}
+{% from "partials/scans.html" import scan_filters, scan_summary, scan_table, suspicious_panel %}
+{% block title %}Ticket verification · EventLink Zambia{% endblock %}
+{% block page %}
+<div class="dash-head">
+  <div>
+    <h1>Ticket verification</h1>
+    <p>Every ticket check at event entrances across EventLink. Results are decided by the system and cannot be edited.</p>
+  </div>
+  <a class="btn btn-outline-secondary" href="{{ url_for('admin.attendants') }}"><i class="bi bi-person-badge" aria-hidden="true"></i> Gate attendants</a>
+</div>
+{{ scan_filters("admin.ticket_scans", events, filters, results, actors) }}
+{{ scan_summary(counts) }}
+{{ suspicious_panel(suspicious) }}
+<section class="panel dash-section" aria-labelledby="scans-heading">
+  <div class="panel-head">
+    <h2 id="scans-heading">Scan records</h2>
+    <span class="panel-note">{{ scans.total }} found</span>
+  </div>
+  {% if scans["items"] %}
+    {{ scan_table(scans["items"]) }}
+  {% else %}
+    {{ empty("qr-code-scan", "No scans found", "Ticket checks will appear here once gate staff start scanning.") }}
+  {% endif %}
+</section>
+{{ pager(scans) }}
+{% endblock %}

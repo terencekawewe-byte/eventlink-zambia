@@ -1,0 +1,113 @@
+{% extends "layouts/dashboard.html" %}
+{% from "partials/ui.html" import csrf, empty %}
+{% from "partials/scans.html" import scan_list %}
+{% block title %}Scan tickets · EventLink Zambia{% endblock %}
+{% block page %}
+{% set icons = {"valid": "check-circle-fill", "already_used": "exclamation-triangle-fill", "invalid": "x-octagon-fill"} %}
+<div class="gate-scan" id="gate-scan" data-verify-url="{{ url_for('gate.verify', event_id=event.id) }}">
+  <header class="gate-scan-head">
+    <div>
+      <p class="eyebrow">Scanning for</p>
+      <h1>{{ event.title }}</h1>
+      <p class="gate-event-meta">
+        <span><i class="bi bi-calendar-event" aria-hidden="true"></i> {{ event.start_datetime.strftime('%a %d %b %Y, %H:%M') }}</span>
+        <span><i class="bi bi-geo-alt" aria-hidden="true"></i> {{ event.venue }}</span>
+      </p>
+    </div>
+    <a class="btn btn-outline-secondary btn-sm" href="{{ url_for('gate.dashboard') }}"><i class="bi bi-arrow-left" aria-hidden="true"></i> Dashboard</a>
+  </header>
+
+  <div class="gate-stats gate-stats-compact" aria-live="polite">
+    <div class="gate-stat"><strong data-stat="expected">{{ stats.expected }}</strong><span>Expected</span></div>
+    <div class="gate-stat gate-stat-ok"><strong data-stat="scanned">{{ stats.scanned }}</strong><span>Scanned</span></div>
+    <div class="gate-stat"><strong data-stat="remaining">{{ stats.remaining }}</strong><span>Remaining</span></div>
+    <div class="gate-stat gate-stat-bad"><strong data-stat="rejected">{{ stats.rejected }}</strong><span>Rejected</span></div>
+  </div>
+
+  <section class="gate-result gate-result-{{ outcome.result if outcome else 'none' }}" id="scan-result" {% if not outcome %}hidden{% endif %} aria-live="assertive" tabindex="-1">
+    <div class="gate-result-banner">
+      <i class="bi bi-{{ icons.get(outcome.result, 'question-circle') if outcome else 'question-circle' }}" data-result="icon" aria-hidden="true"></i>
+      <div>
+        <h2 data-result="label">{{ outcome.label|upper if outcome else "" }}</h2>
+        <p data-result="message">{{ outcome.message if outcome else "" }}</p>
+      </div>
+    </div>
+    <dl class="gate-result-details">
+      <div data-result-row="reason" {% if not (outcome and outcome.reason) %}hidden{% endif %}><dt>Reason</dt><dd data-result="reason">{{ outcome.reason if outcome else "" }}</dd></div>
+      <div data-result-row="ticket" {% if not (outcome and outcome.ticket) %}hidden{% endif %}><dt>Ticket</dt><dd data-result="code">{{ outcome.ticket.code if outcome and outcome.ticket else "" }}</dd></div>
+      <div data-result-row="ticket" {% if not (outcome and outcome.ticket) %}hidden{% endif %}><dt>Event</dt><dd data-result="event">{{ outcome.ticket.event if outcome and outcome.ticket else "" }}</dd></div>
+      <div data-result-row="ticket" {% if not (outcome and outcome.ticket) %}hidden{% endif %}><dt>Ticket category</dt><dd data-result="category">{{ outcome.ticket.category if outcome and outcome.ticket else "" }}</dd></div>
+      <div data-result-row="ticket" {% if not (outcome and outcome.ticket) %}hidden{% endif %}><dt>Ticket holder</dt><dd data-result="holder">{{ outcome.ticket.holder if outcome and outcome.ticket else "" }}</dd></div>
+      <div data-result-row="used" {% if not (outcome and outcome.ticket and outcome.ticket.redeemed_at) %}hidden{% endif %}><dt data-result="used-label">{{ "Entry recorded" if outcome and outcome.result == "valid" else "First scanned" }}</dt><dd data-result="redeemed">{{ outcome.ticket.redeemed_at if outcome and outcome.ticket else "" }}</dd></div>
+      <div><dt>Checked at</dt><dd data-result="checked">{{ outcome.checked_at if outcome else "" }}</dd></div>
+    </dl>
+    <a class="btn btn-green btn-lg gate-next" href="{{ url_for('gate.scan', event_id=event.id) }}" data-scan-next>
+      <i class="bi bi-qr-code-scan" aria-hidden="true"></i> Scan next ticket
+    </a>
+  </section>
+
+  <section class="panel gate-camera" id="camera-panel" {% if outcome %}hidden{% endif %} aria-labelledby="camera-heading">
+    <div class="panel-head">
+      <h2 id="camera-heading"><i class="bi bi-camera" aria-hidden="true"></i> Camera scanner</h2>
+    </div>
+    <div class="gate-reader-wrap">
+      <div id="qr-reader" class="gate-reader" aria-label="Camera preview"></div>
+      <div class="gate-reader-idle" id="reader-idle">
+        <i class="bi bi-qr-code" aria-hidden="true"></i>
+        <span>Point the camera at the QR code on the guest's ticket.</span>
+      </div>
+      <div class="gate-busy" id="scan-busy" hidden role="status">
+        <span class="spinner-border" aria-hidden="true"></span>
+        <span>Checking ticket…</span>
+      </div>
+    </div>
+    <p class="gate-camera-message" id="camera-message" role="status" hidden></p>
+    <div class="gate-camera-controls">
+      <label class="visually-hidden" for="camera-select">Camera</label>
+      <select class="form-select" id="camera-select" hidden></select>
+      <button class="btn btn-green btn-lg" type="button" id="camera-start" disabled>
+        <i class="bi bi-camera-video" aria-hidden="true"></i> Start camera
+      </button>
+      <button class="btn btn-outline-secondary" type="button" id="camera-stop" hidden>
+        <i class="bi bi-stop-circle" aria-hidden="true"></i> Stop camera
+      </button>
+    </div>
+    <noscript><p class="gate-camera-message">The camera scanner needs JavaScript. Type the ticket code below instead.</p></noscript>
+  </section>
+
+  <section class="panel gate-manual" aria-labelledby="manual-heading">
+    <div class="panel-head">
+      <h2 id="manual-heading"><i class="bi bi-keyboard" aria-hidden="true"></i> Type the ticket code</h2>
+    </div>
+    <form method="post" action="{{ url_for('gate.verify', event_id=event.id) }}" id="manual-form" autocomplete="off">
+      {{ csrf() }}
+      <input type="hidden" name="method" value="manual">
+      <label class="form-label" for="manual-code">Ticket reference</label>
+      <div class="gate-manual-row">
+        <input class="form-control form-control-lg" id="manual-code" name="code" placeholder="ELZ-XXXXXXXX-XXXX" maxlength="64" required autocapitalize="characters" spellcheck="false" inputmode="text" value="{{ prefill or '' }}">
+        <button class="btn btn-copper btn-lg" type="submit" id="manual-submit"><i class="bi bi-shield-check" aria-hidden="true"></i> Verify</button>
+      </div>
+      {% if prefill %}
+      <p class="form-text"><i class="bi bi-info-circle" aria-hidden="true"></i> A scanned ticket link was filled in. Tap Verify to check it.</p>
+      {% else %}
+      <p class="form-text">Use this if the QR code will not scan. The reference is printed under the QR code.</p>
+      {% endif %}
+    </form>
+  </section>
+
+  <section class="panel" aria-labelledby="recent-heading">
+    <div class="panel-head">
+      <h2 id="recent-heading">Your recent scans</h2>
+      <a href="{{ url_for('gate.history', event_id=event.id) }}">Full history</a>
+    </div>
+    <div id="recent-scans">
+      {% if history %}{{ scan_list(history) }}{% else %}{{ empty("clock-history", "No scans yet", "Tickets you scan for this event will be listed here.") }}{% endif %}
+    </div>
+  </section>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="{{ url_for('static', filename='vendor/html5-qrcode/html5-qrcode.min.js') }}"></script>
+<script src="{{ url_for('static', filename='js/gate_scan.js') }}"></script>
+{% endblock %}

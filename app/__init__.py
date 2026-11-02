@@ -55,6 +55,7 @@ def create_app(config_class=Config):
     from app.auth.routes import auth_bp
     from app.client.routes import client_bp
     from app.events.routes import events_bp
+    from app.gate.routes import gate_bp
     from app.pages.routes import pages_bp
     from app.payments.routes import payments_bp
     from app.planner.routes import planner_bp
@@ -67,6 +68,7 @@ def create_app(config_class=Config):
     app.register_blueprint(planner_bp)
     app.register_blueprint(admin_bp)
     app.register_blueprint(tickets_bp)
+    app.register_blueprint(gate_bp)
     app.register_blueprint(payments_bp)
 
     with app.app_context():
@@ -91,6 +93,9 @@ def _register_hooks(app):
 
         user = db.session.get(User, user_id)
         if user is None or user.account_status != "active":
+            session.clear()
+            return None
+        if user.role == "attendant" and not user.is_active_attendant:
             session.clear()
             return None
         g.user = user

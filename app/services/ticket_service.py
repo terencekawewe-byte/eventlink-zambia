@@ -161,29 +161,78 @@ def staff_can_verify(user, event):
     return user.role == "planner" and user.id == event.organiser_id and user.is_approved_planner
 
 
-def record_redemption(ticket, actor, result):
-    db.session.add(TicketRedemption(ticket_id=ticket.id, actor_id=actor.id, result=result))
+def record_redemption(ticket, actor, result, reason=None, event=None, method="staff", attempted_code=None):
+    entry = TicketRedemption(
+        ticket_id=ticket.id if ticket is not None else None,
+        event_id=event.id if event is not None else (ticket.event_id if ticket is not None else None),
+        actor_id=actor.id,
+        result=result,
+        reason=reason,
+        method=method,
+        attempted_code=(attempted_code or "")[:40] or None,
+    )
+    db.session.add(entry)
+    return entry
 
 
-def redeem_ticket(ticket, actor):
+def payment_is_verified(ticket):
+    order = ticket.order_item.order if ticket.order_item is not None else None
+    if order is None or order.order_status != "paid":
+        return False
+    return any(payment.status == "successful" and payment.verified_at is not None for payment in order.payments)
+
+
+def entry_problem(ticket, event):
+    """Reason a ticket must be refused at this event's gate, or None if it may be redeemed."""
+    if ticket.event_id != event.id:
+        return "wrong_event"
+    if ticket.status in {"cancelled", "refunded"}:
+        return ticket.status
+    if ticket.status not in {"valid", "redeemed"}:
+        return "not_eligible"
+    if not payment_is_verified(ticket):
+        return "not_paid"
+    if event.publication_status == "cancelled":
+        return "event_cancelled"
+    return None
+
+
+def redeem_for_entry(ticket, event, actor, method="staff", attempted_code=None):
+    """Decide entry for a ticket at an event, redeem it atomically, and log the attempt.
+
+    Returns (result, reason, redemption). Only one concurrent call can return "valid".
+    """
+    reason = entry_problem(ticket, event)
+    if reason:
+        entry = record_redemption(ticket, actor, "invalid", reason, event, method, attempted_code)
+        db.session.commit()
+        return "invalid", reason, entry
     if ticket.status == "redeemed":
-        record_redemption(ticket, actor, "already_redeemed")
+        entry = record_redemption(ticket, actor, "already_used", None, event, method, attempted_code)
         db.session.commit()
-        return "already_redeemed"
-    if ticket.status != "valid":
-        record_redemption(ticket, actor, "not_valid")
-        db.session.commit()
-        return "not_valid"
-    result = db.session.execute(
+        return "already_used", None, entry
+    changed = db.session.execute(
         update(Ticket)
         .where(Ticket.id == ticket.id)
         .where(Ticket.status == "valid")
         .values(status="redeemed", redeemed_at=utcnow(), redeemed_by=actor.id)
     )
-    if result.rowcount != 1:
-        record_redemption(ticket, actor, "already_redeemed")
+    if changed.rowcount != 1:
+        db.session.rollback()
+        db.session.refresh(ticket)
+        result, reason = ("already_used", None) if ticket.status == "redeemed" else ("invalid", "not_eligible")
+        entry = record_redemption(ticket, actor, result, reason, event, method, attempted_code)
         db.session.commit()
-        return "already_redeemed"
-    record_redemption(ticket, actor, "accepted")
+        return result, reason, entry
+    entry = record_redemption(ticket, actor, "valid", None, event, method, attempted_code)
     db.session.commit()
-    return "accepted"
+    db.session.refresh(ticket)
+    return "valid", None, entry
+
+
+LEGACY_RESULTS = {"valid": "accepted", "already_used": "already_redeemed", "invalid": "not_valid"}
+
+
+def redeem_ticket(ticket, actor):
+    result, _, _ = redeem_for_entry(ticket, ticket.event, actor)
+    return LEGACY_RESULTS[result]

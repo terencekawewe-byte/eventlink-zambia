@@ -6,7 +6,7 @@
   <div>
     <p class="eyebrow mb-1"><a href="{{ url_for('admin.users') }}">Users</a></p>
     <h1>{{ user.full_name }}</h1>
-    <p>{{ user.role|title }} · {{ badge(user.account_status) }}{% if user.id == current_user.id %} · This is your account{% endif %}</p>
+    <p>{{ user.role_label }} · {{ badge(user.account_status) }}{% if user.id == current_user.id %} · This is your account{% endif %}</p>
   </div>
 </div>
 
@@ -17,7 +17,11 @@
       <dl class="detail-list">
         <dt>Email</dt><dd>{{ user.email }}</dd>
         <dt>Phone</dt><dd>{{ user.phone }}</dd>
-        <dt>Role</dt><dd>{{ user.role|title }}</dd>
+        <dt>Role</dt><dd>{{ user.role_label }}</dd>
+        {% if user.gate_profile %}
+        <dt>Created by</dt><dd><a href="{{ url_for('admin.user_detail', user_id=user.gate_profile.created_by_id) }}">{{ user.gate_profile.created_by.full_name }}</a> (planner)</dd>
+        <dt>Gate access</dt><dd>{{ badge(user.gate_profile.status) }} · <a href="{{ url_for('admin.attendants', q=user.email) }}">Assigned events</a></dd>
+        {% endif %}
         <dt>Status</dt><dd>{{ badge(user.account_status) }}</dd>
         <dt>Registered</dt><dd>{{ user.created_at|localdt }}</dd>
         <dt>Last updated</dt><dd>{{ user.updated_at|localdt }}</dd>

@@ -1,0 +1,79 @@
+{% extends "layouts/dashboard.html" %}
+{% from "partials/ui.html" import badge, csrf, empty, pager %}
+{% block title %}Gate attendants · EventLink Zambia{% endblock %}
+{% block page %}
+<div class="dash-head">
+  <div>
+    <h1>Gate attendants</h1>
+    <p>Ticket-scanning staff created by planners for their own events. Planners cannot create administrator or planner accounts here.</p>
+  </div>
+  <a class="btn btn-outline-secondary" href="{{ url_for('admin.ticket_scans') }}"><i class="bi bi-qr-code-scan" aria-hidden="true"></i> Ticket verification</a>
+</div>
+<form class="filters" method="get">
+  <div class="row g-2">
+    <div class="col-md-4"><label class="form-label" for="q">Search name, email, or phone</label><input class="form-control" id="q" name="q" value="{{ term }}"></div>
+    <div class="col-md-3"><label class="form-label" for="planner_id">Created by</label>
+      <select class="form-select" id="planner_id" name="planner_id">
+        <option value="">Any planner</option>
+        {% for planner in planners %}<option value="{{ planner.id }}" {% if planner_id == planner.id %}selected{% endif %}>{{ planner.full_name }}</option>{% endfor %}
+      </select>
+    </div>
+    <div class="col-6 col-md-2"><label class="form-label" for="status">Gate access</label>
+      <select class="form-select" id="status" name="status">
+        <option value="">Any</option>
+        {% for value in ['active', 'inactive'] %}<option value="{{ value }}" {% if status == value %}selected{% endif %}>{{ value|title }}</option>{% endfor %}
+      </select>
+    </div>
+    <div class="col-6 col-md-3 d-flex align-items-end gap-2">
+      <button class="btn btn-green" type="submit">Search</button>
+      {% if request.args %}<a class="btn btn-outline-secondary" href="{{ url_for('admin.attendants') }}">Clear</a>{% endif %}
+    </div>
+  </div>
+</form>
+<p class="panel-note">{{ result.total }} attendant{{ '' if result.total == 1 else 's' }} found.</p>
+{% if result["items"] %}
+<div class="table-responsive">
+  <table class="table align-middle">
+    <thead><tr><th>Attendant</th><th>Created by</th><th>Assigned events</th><th>Scans</th><th>Status</th><th>Actions</th></tr></thead>
+    <tbody>
+      {% for attendant in result["items"] %}
+      <tr>
+        <td>
+          <a href="{{ url_for('admin.user_detail', user_id=attendant.user_id) }}">{{ attendant.user.full_name }}</a>
+          <br><small class="text-muted">{{ attendant.user.email }} · {{ attendant.user.phone }}</small>
+          <br><small class="text-muted">Added {{ attendant.created_at|localdate }}</small>
+        </td>
+        <td><a href="{{ url_for('admin.user_detail', user_id=attendant.created_by_id) }}">{{ attendant.created_by.full_name }}</a></td>
+        <td>
+          {% for assignment in attendant.active_assignments %}
+            <div><a href="{{ url_for('admin.event_detail', event_id=assignment.event_id) }}">{{ assignment.event.title }}</a></div>
+          {% else %}<span class="text-muted">None</span>{% endfor %}
+        </td>
+        <td><a href="{{ url_for('admin.ticket_scans', actor_id=attendant.user_id) }}">{{ scan_totals.get(attendant.user_id, 0) }}</a></td>
+        <td>
+          {{ badge(attendant.status) }}
+          {% if attendant.user.account_status != 'active' %}<br>{{ badge('suspended', 'Account suspended') }}{% endif %}
+        </td>
+        <td>
+          <form method="post" action="{{ url_for('admin.attendant_status', attendant_id=attendant.id) }}" data-confirm="{{ ('Deactivate ' if attendant.status == 'active' else 'Reactivate ') ~ attendant.user.full_name ~ '?' }}">
+            {{ csrf() }}
+            <input type="hidden" name="status" value="{{ 'inactive' if attendant.status == 'active' else 'active' }}">
+            <label class="visually-hidden" for="reason-{{ attendant.id }}">Reason</label>
+            <input class="form-control form-control-sm mb-1" id="reason-{{ attendant.id }}" name="reason" placeholder="Reason" required minlength="5" maxlength="500">
+            {% if attendant.status == 'active' %}
+            <button class="btn btn-outline-danger btn-sm" type="submit">Deactivate</button>
+            {% else %}
+            <button class="btn btn-green btn-sm" type="submit">Reactivate</button>
+            {% endif %}
+          </form>
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{{ pager(result) }}
+{% else %}
+<section class="panel">{{ empty("person-badge", "No gate attendants", "Gate attendants appear here once planners create them.") }}</section>
+{% endif %}
+{% endblock %}

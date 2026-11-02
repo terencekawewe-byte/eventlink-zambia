@@ -1,11 +1,13 @@
 """Database models."""
 
 from app.models.database import (
+    AttendantAssignment,
     AuditLog,
     ContactMessage,
     Event,
     EventArtist,
     EventCategory,
+    GateAttendant,
     LoginAttempt,
     Notification,
     Order,
@@ -27,11 +29,13 @@ from app.models.database import (
 )
 
 __all__ = [
+    "AttendantAssignment",
     "AuditLog",
     "ContactMessage",
     "Event",
     "EventArtist",
     "EventCategory",
+    "GateAttendant",
     "LoginAttempt",
     "Notification",
     "Order",

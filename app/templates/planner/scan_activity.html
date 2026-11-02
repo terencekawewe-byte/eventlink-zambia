@@ -1,0 +1,29 @@
+{% extends "layouts/dashboard.html" %}
+{% from "partials/ui.html" import empty, pager %}
+{% from "partials/scans.html" import scan_filters, scan_summary, scan_table, suspicious_panel %}
+{% block title %}Scan activity · EventLink Zambia{% endblock %}
+{% block crumb_trail %}<li><a href="{{ url_for('planner.attendants') }}">Gate attendants</a></li>{% endblock %}
+{% block page %}
+<div class="dash-head">
+  <div>
+    <h1>Scan activity</h1>
+    <p>Every ticket check at the entrance of your events, by your gate attendants or by you.</p>
+  </div>
+  <a class="btn btn-outline-secondary" href="{{ url_for('planner.attendants') }}"><i class="bi bi-person-badge" aria-hidden="true"></i> Gate attendants</a>
+</div>
+{{ scan_filters("planner.scan_activity", events, filters, results, [current_user] + staff|map(attribute="user")|list) }}
+{{ scan_summary(counts) }}
+{{ suspicious_panel(suspicious) }}
+<section class="panel dash-section" aria-labelledby="scans-heading">
+  <div class="panel-head">
+    <h2 id="scans-heading">Scan records</h2>
+    <span class="panel-note">{{ scans.total }} found</span>
+  </div>
+  {% if scans["items"] %}
+    {{ scan_table(scans["items"]) }}
+  {% else %}
+    {{ empty("qr-code-scan", "No scans found", "Ticket checks at your events will appear here once gate staff start scanning.") }}
+  {% endif %}
+</section>
+{{ pager(scans) }}
+{% endblock %}

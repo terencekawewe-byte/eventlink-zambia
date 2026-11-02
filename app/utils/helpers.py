@@ -65,6 +65,8 @@ def dashboard_endpoint(user):
         return "admin.dashboard"
     if user.role == "planner":
         return "planner.dashboard" if user.is_approved_planner else "planner.pending"
+    if user.role == "attendant":
+        return "gate.dashboard"
     return "client.dashboard"
 
 

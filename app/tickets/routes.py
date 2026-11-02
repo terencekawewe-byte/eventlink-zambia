@@ -7,10 +7,16 @@ from flask import Blueprint, abort, flash, g, redirect, render_template, request
 
 from app.extensions import db
 from app.models import Event, Ticket
+from app.services.gate_service import assignment_for
 from app.services.ticket_service import record_redemption, redeem_ticket, staff_can_verify
 from app.utils.decorators import login_required
 
 tickets_bp = Blueprint("tickets", __name__, url_prefix="/tickets")
+
+
+def _selected_event(value):
+    event = db.session.get(Event, int(value)) if value.isdigit() else None
+    return event if event is not None and staff_can_verify(g.user, event) else None
 
 
 def _authorised_ticket(ticket):
@@ -60,7 +66,7 @@ def verify_lookup():
             return redirect(url_for("tickets.verify_lookup"))
         selected = (request.form.get("event_id") or "").strip()
         if selected and selected != str(ticket.event_id):
-            record_redemption(ticket, g.user, "wrong_event")
+            record_redemption(ticket, g.user, "invalid", "wrong_event", _selected_event(selected), "manual", code)
             db.session.commit()
             flash("This ticket does not belong to the selected event.", "danger")
             return redirect(url_for("tickets.verify_lookup"))
@@ -71,6 +77,12 @@ def verify_lookup():
 @tickets_bp.route("/verify/<token>")
 @login_required
 def verify_token(token):
+    if g.user.role == "attendant":
+        ticket = Ticket.query.filter_by(qr_token=token).first()
+        if ticket is not None and assignment_for(g.user, ticket.event_id) is not None:
+            return redirect(url_for("gate.scan", event_id=ticket.event_id, code=token))
+        flash("This ticket could not be verified for an event you are assigned to. Open the event's scan page and scan it there.", "danger")
+        return redirect(url_for("gate.dashboard"))
     if g.user.role not in {"admin", "planner"}:
         abort(403)
     ticket = Ticket.query.filter_by(qr_token=token).first()
@@ -88,7 +100,7 @@ def redeem(ticket_id):
         abort(403)
     selected = (request.form.get("event_id") or "").strip()
     if selected and selected != str(ticket.event_id):
-        record_redemption(ticket, g.user, "wrong_event")
+        record_redemption(ticket, g.user, "invalid", "wrong_event", _selected_event(selected))
         db.session.commit()
         flash("This ticket does not belong to the selected event.", "danger")
         return redirect(url_for("tickets.verify_lookup"))

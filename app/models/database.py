@@ -24,12 +24,13 @@ DEFAULT_CATEGORIES = [
     ("Religious events", "Faith gatherings, crusades, and worship events."),
     ("Other events", "Occasions that do not fit the categories above."),
 ]
+USER_ROLES = {"client": "Client", "planner": "Planner", "admin": "Admin", "attendant": "Gate attendant"}
 
 
 class User(db.Model):
     __tablename__ = "users"
     __table_args__ = (
-        db.CheckConstraint("role IN ('client', 'planner', 'admin')", name="ck_users_role"),
+        db.CheckConstraint("role IN ('client', 'planner', 'admin', 'attendant')", name="ck_users_role"),
         db.CheckConstraint("account_status IN ('active', 'suspended')", name="ck_users_status"),
     )
 
@@ -50,6 +51,12 @@ class User(db.Model):
         foreign_keys="PlannerProfile.user_id",
     )
     notifications = db.relationship("Notification", back_populates="user")
+    gate_profile = db.relationship(
+        "GateAttendant",
+        back_populates="user",
+        uselist=False,
+        foreign_keys="GateAttendant.user_id",
+    )
 
     def set_password(self, password):
         from werkzeug.security import generate_password_hash
@@ -76,6 +83,20 @@ class User(db.Model):
             and self.account_status == "active"
             and profile is not None
             and profile.approval_status == "approved"
+        )
+
+    @property
+    def role_label(self):
+        return USER_ROLES.get(self.role, self.role.title())
+
+    @property
+    def is_active_attendant(self):
+        profile = self.gate_profile
+        return (
+            self.role == "attendant"
+            and self.account_status == "active"
+            and profile is not None
+            and profile.status == "active"
         )
 
 
@@ -462,17 +483,109 @@ class Ticket(db.Model):
     redeemer = db.relationship("User", foreign_keys=[redeemed_by])
 
 
+SCAN_RESULTS = {"valid": "Valid ticket", "already_used": "Already used", "invalid": "Invalid ticket"}
+SCAN_REASONS = {
+    "unreadable": "The code is not an EventLink ticket code.",
+    "not_found": "No ticket matches this code.",
+    "wrong_event": "This ticket is for a different event.",
+    "cancelled": "This ticket has been cancelled.",
+    "refunded": "This ticket has been refunded.",
+    "not_paid": "Payment for this ticket has not been verified.",
+    "event_cancelled": "This event has been cancelled.",
+    "not_eligible": "This ticket is not eligible for entry.",
+}
+SCAN_METHODS = {"camera": "Camera", "manual": "Typed code", "staff": "Staff check"}
+
+
 class TicketRedemption(db.Model):
+    """One verification attempt at the gate, whatever its result."""
+
     __tablename__ = "ticket_redemptions"
+    __table_args__ = (
+        db.CheckConstraint("result IN ('valid', 'already_used', 'invalid')", name="ck_redemption_result"),
+        db.CheckConstraint("method IS NULL OR method IN ('camera', 'manual', 'staff')", name="ck_redemption_method"),
+    )
 
     id = db.Column(db.Integer, primary_key=True)
-    ticket_id = db.Column(db.Integer, db.ForeignKey("tickets.id"), nullable=False, index=True)
-    actor_id = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=False)
-    result = db.Column(db.String(40), nullable=False)
-    created_at = db.Column(db.DateTime, default=utcnow, nullable=False)
+    ticket_id = db.Column(db.Integer, db.ForeignKey("tickets.id"), index=True)
+    event_id = db.Column(db.Integer, db.ForeignKey("events.id"), index=True)
+    actor_id = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=False, index=True)
+    result = db.Column(db.String(20), nullable=False, index=True)
+    reason = db.Column(db.String(40))
+    method = db.Column(db.String(10))
+    attempted_code = db.Column(db.String(40))
+    created_at = db.Column(db.DateTime, default=utcnow, nullable=False, index=True)
 
     ticket = db.relationship("Ticket")
+    event = db.relationship("Event")
     actor = db.relationship("User")
+
+    @property
+    def result_label(self):
+        return SCAN_RESULTS.get(self.result, self.result)
+
+    @property
+    def reason_text(self):
+        return SCAN_REASONS.get(self.reason, "") if self.reason else ""
+
+    @property
+    def method_label(self):
+        return SCAN_METHODS.get(self.method, "")
+
+    @property
+    def shows_ticket(self):
+        """Tickets from another event are not identified to the people running this one."""
+        return self.ticket is not None and self.ticket.event_id == self.event_id
+
+
+class GateAttendant(db.Model):
+    """Gate staff account created by a planner to scan tickets at their events."""
+
+    __tablename__ = "gate_attendants"
+    __table_args__ = (db.CheckConstraint("status IN ('active', 'inactive')", name="ck_gate_attendant_status"),)
+
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey("users.id"), unique=True, nullable=False, index=True)
+    created_by_id = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=False, index=True)
+    status = db.Column(db.String(20), nullable=False, default="active", index=True)
+    must_change_password = db.Column(db.Boolean, nullable=False, default=True)
+    created_at = db.Column(db.DateTime, default=utcnow, nullable=False)
+    updated_at = db.Column(db.DateTime, default=utcnow, onupdate=utcnow, nullable=False)
+
+    user = db.relationship("User", foreign_keys=[user_id], back_populates="gate_profile")
+    created_by = db.relationship("User", foreign_keys=[created_by_id])
+    assignments = db.relationship(
+        "AttendantAssignment",
+        back_populates="attendant",
+        order_by="AttendantAssignment.created_at.desc()",
+    )
+
+    @property
+    def active_assignments(self):
+        return [assignment for assignment in self.assignments if assignment.status == "active"]
+
+
+class AttendantAssignment(db.Model):
+    __tablename__ = "attendant_assignments"
+    __table_args__ = (
+        db.UniqueConstraint("attendant_id", "event_id", name="uq_attendant_event"),
+        db.CheckConstraint("status IN ('active', 'revoked')", name="ck_assignment_status"),
+    )
+
+    id = db.Column(db.Integer, primary_key=True)
+    attendant_id = db.Column(db.Integer, db.ForeignKey("gate_attendants.id"), nullable=False, index=True)
+    event_id = db.Column(db.Integer, db.ForeignKey("events.id"), nullable=False, index=True)
+    assigned_by_id = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=False)
+    status = db.Column(db.String(20), nullable=False, default="active", index=True)
+    revoked_at = db.Column(db.DateTime)
+    revoked_by_id = db.Column(db.Integer, db.ForeignKey("users.id"))
+    created_at = db.Column(db.DateTime, default=utcnow, nullable=False)
+    updated_at = db.Column(db.DateTime, default=utcnow, onupdate=utcnow, nullable=False)
+
+    attendant = db.relationship("GateAttendant", back_populates="assignments")
+    event = db.relationship("Event")
+    assigned_by = db.relationship("User", foreign_keys=[assigned_by_id])
+    revoked_by = db.relationship("User", foreign_keys=[revoked_by_id])
 
 
 class PlannerBooking(db.Model):

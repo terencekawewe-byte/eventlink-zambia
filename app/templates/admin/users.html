@@ -14,7 +14,7 @@
     <div class="col-6 col-md-2"><label class="form-label" for="role">Role</label>
       <select class="form-select" id="role" name="role">
         <option value="">All roles</option>
-        {% for value in ['client', 'planner', 'admin'] %}<option value="{{ value }}" {% if role == value %}selected{% endif %}>{{ value|title }}</option>{% endfor %}
+        {% for value, label in roles.items() %}<option value="{{ value }}" {% if role == value %}selected{% endif %}>{{ label }}</option>{% endfor %}
       </select>
     </div>
     <div class="col-6 col-md-2"><label class="form-label" for="status">Account status</label>
@@ -39,7 +39,7 @@
         <td><a href="{{ url_for('admin.user_detail', user_id=user.id) }}">{{ user.full_name }}</a></td>
         <td>{{ user.email }}</td>
         <td>{{ user.phone }}</td>
-        <td>{{ user.role|title }}</td>
+        <td>{{ user.role_label }}</td>
         <td>{{ badge(user.account_status) }}</td>
         <td>{{ user.created_at|localdate }}</td>
         <td>

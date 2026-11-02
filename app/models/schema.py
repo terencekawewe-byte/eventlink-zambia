@@ -1,12 +1,17 @@
-"""Additive schema upgrades for databases created before a column existed.
+"""Schema upgrades for databases created by an earlier version of the app.
 
 db.create_all() creates missing tables but never alters existing ones, so new
-nullable columns are added here. Existing rows and data are left untouched.
+nullable columns are added here, and tables whose constraints changed are
+rebuilt by app.models.migrations. Existing rows and data are kept.
 """
 
+import os
+
+from flask import current_app
 from sqlalchemy import inspect, text
 
 from app.extensions import db
+from app.models.migrations import rebuild_tables
 
 ADDED_COLUMNS = {
     "planner_profiles": [
@@ -20,8 +25,13 @@ ADDED_COLUMNS = {
 
 
 def upgrade_schema():
-    inspector = inspect(db.engine)
     added = []
+    if db.engine.dialect.name == "sqlite":
+        rebuilt = rebuild_tables(db.engine, db.metadata, os.path.join(current_app.instance_path, "backups"))
+        for step in rebuilt:
+            current_app.logger.warning("Schema upgrade: %s", step)
+        added.extend(rebuilt)
+    inspector = inspect(db.engine)
     with db.engine.begin() as connection:
         for table, columns in ADDED_COLUMNS.items():
             if not inspector.has_table(table):

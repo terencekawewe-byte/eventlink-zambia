@@ -82,6 +82,10 @@ def login():
             _record_attempt(lookup, False)
             flash("This account has been suspended. Contact EventLink support.", "danger")
             return render_template("auth/login.html", form=form)
+        if user.role == "attendant" and not user.is_active_attendant:
+            _record_attempt(lookup, False)
+            flash("This gate attendant account is not active. Contact the event planner.", "danger")
+            return render_template("auth/login.html", form=form)
         _record_attempt(email, True)
         session.clear()
         session["user_id"] = user.id
@@ -238,8 +242,13 @@ def change_password():
     if form.validate_on_submit():
         if not g.user.check_password(form.current_password.data):
             flash("The current password is not correct.", "danger")
+        elif g.user.check_password(form.password.data):
+            flash("Choose a new password that is different from the current one.", "danger")
         else:
             g.user.set_password(form.password.data)
+            if g.user.gate_profile is not None and g.user.gate_profile.must_change_password:
+                g.user.gate_profile.must_change_password = False
+                audit(g.user.id, "attendant_password_set", "gate_attendant", g.user.gate_profile.id)
             db.session.commit()
             flash("Your password has been updated.", "success")
             return redirect(url_for(dashboard_endpoint(g.user)))

@@ -18,11 +18,13 @@
     {% set crumb_role = current_user.role %}
     {% if crumb_role == "admin" %}{% set crumb_home = url_for("admin.dashboard") %}
     {% elif crumb_role == "planner" %}{% set crumb_home = url_for("planner.dashboard") if current_user.is_approved_planner else url_for("planner.pending") %}
+    {% elif crumb_role == "attendant" %}{% set crumb_home = url_for("gate.dashboard") %}
     {% else %}{% set crumb_home = url_for("client.dashboard") %}{% endif %}
+    {% set crumb_names = {"admin": "Admin", "planner": "Planner", "attendant": "Gate"} %}
     <nav class="dash-crumbs no-print" aria-label="Breadcrumb">
       <ol>
-        <li><a href="{{ crumb_home }}"><i class="bi bi-house-door" aria-hidden="true"></i> {{ "Admin" if crumb_role == "admin" else ("Planner" if crumb_role == "planner" else "My account") }}</a></li>
-        {% if request.endpoint in ("client.dashboard", "planner.dashboard", "planner.pending", "admin.dashboard") %}
+        <li><a href="{{ crumb_home }}"><i class="bi bi-house-door" aria-hidden="true"></i> {{ crumb_names.get(crumb_role, "My account") }}</a></li>
+        {% if request.endpoint in ("client.dashboard", "planner.dashboard", "planner.pending", "admin.dashboard", "gate.dashboard") %}
         <li aria-current="page">Dashboard</li>
         {% else %}
         {% block crumb_trail %}{% endblock %}

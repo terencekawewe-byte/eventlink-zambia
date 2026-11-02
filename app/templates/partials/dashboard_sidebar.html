@@ -18,7 +18,7 @@
     <span class="dash-avatar" aria-hidden="true">{{ current_user.full_name[:1]|upper }}</span>
     <div class="dash-user-text">
       <strong>{{ profile.business_name if profile else current_user.full_name }}</strong>
-      <span>{% if role == "admin" %}Administrator{% elif role == "planner" %}Event planner{% else %}Client account{% endif %}</span>
+      <span>{% if role == "admin" %}Administrator{% elif role == "planner" %}Event planner{% elif role == "attendant" %}Gate attendant{% else %}Client account{% endif %}</span>
     </div>
   </div>
 
@@ -45,6 +45,7 @@
         {{ item("planner.quotations", "receipt", "Quotations") }}
         {{ item("planner.my_events", "calendar-event", "My Events", also=("planner.create_event", "planner.edit_event")) }}
         {{ item("planner.services", "briefcase", "My Services") }}
+        {{ item("planner.attendants", "person-badge-fill", "Gate Attendants", also=("planner.attendant_detail", "planner.scan_activity")) }}
         {{ item("planner.reports", "bar-chart-line", "Reports") }}
         {{ item("planner.notifications", "bell", "Notifications", count=unread_notifications) }}
       </ul>
@@ -67,6 +68,11 @@
         {{ item("admin.planners", "patch-check", "Planner Verification", also=("admin.planner_detail",)) }}
         {{ item("admin.events", "calendar-check", "Event Approval", also=("admin.event_detail",)) }}
       </ul>
+      <p class="dash-menu-label">Event entry</p>
+      <ul>
+        {{ item("admin.attendants", "person-badge-fill", "Gate Attendants") }}
+        {{ item("admin.ticket_scans", "qr-code-scan", "Ticket Verification") }}
+      </ul>
       <p class="dash-menu-label">Sales</p>
       <ul>
         {{ item("admin.ticket_sales", "ticket-detailed", "Ticket Sales") }}
@@ -85,6 +91,16 @@
       <p class="dash-menu-label">Account</p>
       <ul>
         {{ item("admin.profile", "person-circle", "My Profile") }}
+        {{ item("auth.change_password", "shield-lock", "Change Password") }}
+      </ul>
+    {% elif role == "attendant" %}
+      <p class="dash-menu-label">Gate</p>
+      <ul>
+        {{ item("gate.dashboard", "grid-1x2", "Dashboard", also=("gate.scan",)) }}
+        {{ item("gate.history", "clock-history", "Scan History") }}
+      </ul>
+      <p class="dash-menu-label">Account</p>
+      <ul>
         {{ item("auth.change_password", "shield-lock", "Change Password") }}
       </ul>
     {% endif %}
